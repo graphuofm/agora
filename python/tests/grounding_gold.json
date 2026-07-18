@@ -1,0 +1,21 @@
+{
+  "_comment": "Gold table for grounded parameter extraction (mustread.txt §9). Each entry is a verifiable factual parameter and its ground-truth value, used by `agora_rag build --report-grounding` to compute extraction_accuracy and grounding_rate. Values are facts from the cited US-federal standard (public domain).",
+  "finance": {
+    "ctr_threshold": {
+      "value": 10000.0,
+      "unit": "usd",
+      "source_id": "fincen_31cfr_chx",
+      "section": "1010.311",
+      "standard": "FinCEN 31 CFR 1010.311 — Filing obligations for reports of transactions in currency (CTR > $10,000)",
+      "evidence": "transaction in currency of more than $10,000"
+    },
+    "sar_threshold": {
+      "value": 5000.0,
+      "unit": "usd",
+      "source_id": "fincen_31cfr_chx",
+      "section": "1020.320",
+      "standard": "FinCEN 31 CFR 1020.320 — Reports by banks of suspicious transactions (SAR >= $5,000)",
+      "evidence": "involves or aggregates at least $5,000 in funds"
+    }
+  }
+}

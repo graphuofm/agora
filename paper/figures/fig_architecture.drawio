@@ -1,0 +1,95 @@
+<mxfile host="app.diagrams.net" version="24.0.0">
+  <!-- Editable source for fig_architecture.pdf (single-column pipeline).
+       Main tone: blue #0072B2 (the pipeline). Single accent: green #009E73
+       (the running example). Keep both in sync with make_figures.py. -->
+  <diagram name="AGORA pipeline (single column)">
+    <mxGraphModel dx="900" dy="700" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageWidth="345" pageHeight="305" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===== LEFT COLUMN: the pipeline (main tone = blue) ===== -->
+        <mxCell id="offband" value="" style="rounded=1;arcSize=8;fillColor=#e8f1fa;strokeColor=#0072B2;strokeWidth=1.4;" vertex="1" parent="1">
+          <mxGeometry x="5" y="4" width="212" height="111" as="geometry" />
+        </mxCell>
+        <mxCell id="offtitle" value="OFFLINE · RAG  (one-time)" style="text;html=1;align=left;verticalAlign=middle;fontSize=8;fontStyle=3;fontColor=#0072B2;" vertex="1" parent="1">
+          <mxGeometry x="12" y="8" width="200" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="offsteps" value="&#183;  one-sentence domain description&#10;&#183;  retrieve standard text (FATF, 31 CFR)&#10;&#183;  match nearest built-in scaffold&#10;&#183;  ground params from cited text&#10;&#183;  lint + Rust validate &#8594; rule base" style="text;html=1;align=left;verticalAlign=top;fontSize=7.5;fontColor=#14243a;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="16" y="24" width="198" height="86" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a1" style="endArrow=blockThin;html=1;strokeColor=#0072B2;strokeWidth=1.6;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="111" y="115" as="sourcePoint" /><mxPoint x="111" y="130" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="onband" value="" style="rounded=1;arcSize=8;fillColor=#d8e8f6;strokeColor=#0072B2;strokeWidth=1.4;" vertex="1" parent="1">
+          <mxGeometry x="5" y="131" width="212" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="ontitle" value="ONLINE · Rust engine" style="text;html=1;align=left;verticalAlign=middle;fontSize=8;fontStyle=3;fontColor=#0072B2;" vertex="1" parent="1">
+          <mxGeometry x="12" y="135" width="200" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="onsteps" value="&#183;  demand-driven skeleton&#10;&#183;  agent event loop (Alg. 1)&#10;&#183;  label at emission = intent" style="text;html=1;align=left;verticalAlign=top;fontSize=7.5;fontColor=#14243a;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="16" y="151" width="198" height="48" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a2" style="endArrow=blockThin;html=1;strokeColor=#0072B2;strokeWidth=1.6;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="111" y="203" as="sourcePoint" /><mxPoint x="111" y="217" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="outband" value="" style="rounded=1;arcSize=8;fillColor=#c8dcf2;strokeColor=#0072B2;strokeWidth=1.4;" vertex="1" parent="1">
+          <mxGeometry x="5" y="218" width="212" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="outtitle" value="OUTPUT" style="text;html=1;align=left;verticalAlign=middle;fontSize=8;fontStyle=3;fontColor=#0072B2;" vertex="1" parent="1">
+          <mxGeometry x="12" y="222" width="200" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="outsteps" value="&#183;  sharded columnar graph&#10;&#183;  + ground_truth.json + labels&#10;&#183;  loadable: PyG · DGL · Neo4j" style="text;html=1;align=left;verticalAlign=top;fontSize=7.5;fontColor=#14243a;spacingTop=2;" vertex="1" parent="1">
+          <mxGeometry x="16" y="238" width="198" height="48" as="geometry" />
+        </mxCell>
+
+        <!-- ===== RIGHT COLUMN: running example (single accent = green) ===== -->
+        <mxCell id="lane" value="" style="rounded=1;arcSize=6;fillColor=#eefaf5;strokeColor=#009E73;strokeWidth=1.2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="228" y="4" width="108" height="286" as="geometry" />
+        </mxCell>
+        <mxCell id="lanetitle" value="running example:&#10;account 437" style="text;html=1;align=center;verticalAlign=middle;fontSize=7.5;fontStyle=3;fontColor=#136B52;" vertex="1" parent="1">
+          <mxGeometry x="230" y="8" width="104" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="n1" value="&quot;structuring&quot;&#10;in the request" style="text;html=1;align=center;verticalAlign=middle;fontSize=7;fontColor=#136B52;" vertex="1" parent="1">
+          <mxGeometry x="230" y="42" width="104" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="&#8594; finance scaffold" style="text;html=1;align=center;verticalAlign=middle;fontSize=7;fontColor=#136B52;" vertex="1" parent="1">
+          <mxGeometry x="230" y="76" width="104" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" value="$10k from 31 CFR" style="text;html=1;align=center;verticalAlign=middle;fontSize=7;fontColor=#136B52;" vertex="1" parent="1">
+          <mxGeometry x="230" y="106" width="104" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" value="437 emits a&#10;$9,210 deposit" style="text;html=1;align=center;verticalAlign=middle;fontSize=7;fontColor=#136B52;" vertex="1" parent="1">
+          <mxGeometry x="230" y="152" width="104" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" value="label = structuring" style="text;html=1;align=center;verticalAlign=middle;fontSize=7;fontColor=#136B52;" vertex="1" parent="1">
+          <mxGeometry x="230" y="184" width="104" height="14" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" value="edge +&#10;ground_truth.json" style="text;html=1;align=center;verticalAlign=middle;fontSize=7;fontColor=#136B52;" vertex="1" parent="1">
+          <mxGeometry x="230" y="246" width="104" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="la1" style="endArrow=blockThin;html=1;strokeColor=#009E73;strokeWidth=1.2;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="282" y="63" as="sourcePoint" /><mxPoint x="282" y="75" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="la2" style="endArrow=blockThin;html=1;strokeColor=#009E73;strokeWidth=1.2;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="282" y="91" as="sourcePoint" /><mxPoint x="282" y="105" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="la3" style="endArrow=blockThin;html=1;strokeColor=#009E73;strokeWidth=1.2;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="282" y="121" as="sourcePoint" /><mxPoint x="282" y="151" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="la4" style="endArrow=blockThin;html=1;strokeColor=#009E73;strokeWidth=1.2;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="282" y="173" as="sourcePoint" /><mxPoint x="282" y="183" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="la5" style="endArrow=blockThin;html=1;strokeColor=#009E73;strokeWidth=1.2;endFill=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="282" y="199" as="sourcePoint" /><mxPoint x="282" y="245" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

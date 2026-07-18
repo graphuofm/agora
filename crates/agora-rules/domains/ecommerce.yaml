@@ -1,0 +1,412 @@
+# AGORA built-in rule base — Domain 5: E-commerce / Review & Rating Fraud.
+# Grounded in DOMAINS.md §5; standards provenance per CORPUS.md domain 5
+# (FTC 16 CFR 465/255, YelpChi/CARE-GNN/Ott/Mukherjee/Xie academic taxonomies).
+# Anomaly source type: ADVERSARIAL.
+# YAML note: `!tag` selects an enum variant (serde_yaml external tagging).
+
+meta:
+  id: ecommerce
+  name: E-commerce / Review & Rating Fraud
+  description: >-
+    Heterogeneous review marketplace (user/product/seller/review + shared
+    device/IP) with opinion-spam anomalies: fake reviews, collusion rings,
+    sockpuppets, singleton bursts, and return fraud. Honest behavior shows
+    power-law reviews-per-user, J-shaped 5-star-skewed ratings, and bursty
+    inter-arrivals; adversaries camouflage via feature + relation dilution
+    (CARE-GNN).
+  schema_version: 1
+  provenance:
+    - source: FTC 16 CFR Part 465 (Consumer Reviews & Testimonials Rule, eff. Oct 2024)
+      url: https://www.ecfr.gov/current/title-16/chapter-I/subchapter-D/part-465
+      license_tier: A
+    - source: FTC 16 CFR Part 255 (Endorsement Guides, rev. 2023; material-connection disclosure)
+      url: https://www.ecfr.gov/current/title-16/chapter-I/subchapter-B/part-255
+      license_tier: A
+    - source: Rayana & Akoglu, SpEagle / YelpChi R-U-R, R-S-R, R-T-R relations (KDD 2015)
+      license_tier: A
+    - source: Dou et al., CARE-GNN feature + relation camouflage (CIKM 2020)
+      license_tier: A
+    - source: Ott et al., deceptive opinion spam (ACL 2011); Mukherjee et al., spammer groups (WWW 2012 / ICWSM 2013); Xie et al., singleton-review bursts (KDD 2012); McAuley & Leskovec, power-law reviews-per-user (WWW 2013)
+      license_tier: A
+    - source: DOMAINS.md dossier 5 (YelpChi/YelpZip/Amazon/REV2 base rates; no canonical temporal benchmark — gap AGORA fills)
+
+entity_types:
+  - name: user
+    population_weight: 0.74
+    attributes:
+      - name: kind
+        kind: !categorical { values: [organic, paid, bot], weights: [0.93, 0.05, 0.02] }
+      - name: account_age_days
+        kind: !numeric { dist: !log_normal { mu: 5.6, sigma: 1.1 } }   # median ≈ 270d, heavy tail
+      - name: verified_buyer
+        kind: !flag { p: 0.62 }
+      - name: home_region
+        kind: !categorical { values: [US, EU, UK, APAC, LATAM], weights: [0.42, 0.24, 0.10, 0.18, 0.06] }
+    state:
+      - name: review_count
+        init: !constant { value: 0.0 }
+      - name: helpful_received
+        init: !constant { value: 0.0 }
+      - name: return_count
+        init: !constant { value: 0.0 }
+
+  - name: product
+    population_weight: 0.18
+    attributes:
+      - name: category
+        kind: !categorical { values: [electronics, home, beauty, books, apparel, supplements, toys], weights: [0.20, 0.18, 0.14, 0.12, 0.20, 0.08, 0.08] }
+      - name: price
+        kind: !numeric { dist: !log_normal { mu: 3.1, sigma: 0.9 } }   # median ≈ $22
+      - name: is_new_listing
+        kind: !flag { p: 0.15 }   # young listings are the target of singleton bursts
+    state:
+      - name: cum_rating
+        init: !constant { value: 0.0 }
+      - name: review_velocity
+        init: !constant { value: 0.0 }
+      - name: rank
+        init: !log_normal { mu: 8.0, sigma: 1.5 }
+
+  - name: seller
+    population_weight: 0.05
+    attributes:
+      - name: tenure
+        kind: !ordinal { tiers: [new, established, top_rated], weights: [0.30, 0.55, 0.15] }
+      - name: marketplace
+        kind: !categorical { values: [first_party, third_party_fba, third_party_fbm], weights: [0.20, 0.50, 0.30] }
+    state:
+      - name: rating
+        init: !normal { mean: 4.3, std: 0.3 }
+      - name: return_rate
+        init: !uniform { min: 0.02, max: 0.12 }
+
+  # Shared-fingerprint node for sockpuppet linkage (YelpChi R-U-R / device relation).
+  - name: device
+    population_weight: 0.03
+    attributes:
+      - name: fp_type
+        kind: !categorical { values: [residential_ip, mobile, datacenter_proxy, emulator], weights: [0.55, 0.32, 0.08, 0.05] }
+    state:
+      - name: user_count
+        init: !constant { value: 0.0 }
+
+relations:
+  # Bipartite affiliation: which products a user CAN review/buy (Zipf-popular catalog head).
+  - name: catalog
+    src: user
+    dst: product
+    model: !affiliation
+      popularity: !zipf { n: 5000000, exponent: 1.15 }
+    layer: skeleton
+    mean_degree: 4.0
+  # Seller -> product ownership (bipartite affiliation, lighter head).
+  - name: storefront
+    src: seller
+    dst: product
+    model: !affiliation
+      popularity: !zipf { n: 200000, exponent: 1.0 }
+    layer: skeleton
+    mean_degree: 12.0
+  # Device/IP linkage: users sharing a fingerprint (R-U-R sockpuppet relation).
+  - name: device_share
+    src: user
+    dst: device
+    model: !affiliation
+      popularity: !zipf { n: 1000000, exponent: 1.4 }
+    layer: vessels
+    mean_degree: 1.1
+  # Reuse-of-partner muscle layer: repeat purchase/review affinity among users.
+  - name: copurchase
+    src: user
+    dst: user
+    model: !small_world { k: 6, beta: 0.2 }
+    layer: muscle
+    mean_degree: 6.0
+
+event_types:
+  - name: WROTE_REVIEW
+    src: user
+    dst: product
+    attributes:
+      # J-shaped, 5-star-skewed honest rating distribution (ordinal stars 1..5).
+      - name: star
+        kind: !ordinal { tiers: ["1", "2", "3", "4", "5"], weights: [0.10, 0.05, 0.07, 0.18, 0.60] }
+      - name: verified_purchase
+        kind: !flag { p: 0.68 }
+      - name: text_len
+        kind: !numeric { dist: !log_normal { mu: 4.2, sigma: 0.8 } }   # chars; deceptive reviews run short on concrete detail
+      - name: helpful_votes
+        kind: !numeric { dist: !log_normal { mu: 0.4, sigma: 1.0 } }
+    effects:
+      - !increment_src { var: review_count }
+      - !increment_dst { var: review_velocity }
+      - !add_to_dst { var: cum_rating, from_attr: star }
+
+  - name: PURCHASED
+    src: user
+    dst: product
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 3.1, sigma: 0.9 } }
+      - name: returned
+        kind: !flag { p: 0.08 }
+    effects:
+      - !increment_dst { var: review_velocity }
+
+  - name: RATED
+    src: user
+    dst: product
+    attributes:
+      - name: star
+        kind: !ordinal { tiers: ["1", "2", "3", "4", "5"], weights: [0.08, 0.05, 0.08, 0.21, 0.58] }
+    effects:
+      - !add_to_dst { var: cum_rating, from_attr: star }
+
+  - name: RETURNED
+    src: user
+    dst: product
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 3.1, sigma: 0.9 } }
+      - name: reason
+        kind: !categorical { values: [defective, not_as_described, no_longer_needed, wardrobing, empty_box], weights: [0.30, 0.28, 0.34, 0.05, 0.03] }
+    effects:
+      - !increment_src { var: return_count }
+
+  - name: VOTED_HELPFUL
+    src: user
+    dst: user           # voter -> review author (R-U-R helpful-vote relation)
+    attributes:
+      - name: weight
+        kind: !numeric { dist: !constant { value: 1.0 } }
+    effects:
+      - !add_to_dst { var: helpful_received, from_attr: weight }
+
+behaviors:
+  # Most users review <= 1 item: power-law via low rate + heavy activity heterogeneity.
+  - name: organic_shopper
+    actor: user
+    actor_filter: [{ attr: kind, value: organic }]
+    timing:
+      rate_per_day: 0.05            # ~18 actions/yr at the median; long idle gaps
+      diurnal: [0.2,0.1,0.1,0.1,0.1,0.2,0.4,0.7,1.0,1.2,1.3,1.4,1.5,1.4,1.3,1.3,1.4,1.6,1.8,1.7,1.4,1.0,0.6,0.3]
+      weekly: [1.0, 0.95, 0.95, 1.0, 1.1, 1.3, 1.2]   # weekend shopping bump
+      burst_p: 0.20                 # occasional review-after-purchase clusters
+      burst_mean_len: 2.0
+    events:
+      - event: PURCHASED
+        weight: 0.55
+        counterparty: !repeat_or_neighbor { relation: catalog, repeat_p: 0.30 }
+      - event: WROTE_REVIEW
+        weight: 0.18
+        counterparty: !repeat_or_neighbor { relation: catalog, repeat_p: 0.25 }
+      - event: RATED
+        weight: 0.12
+        counterparty: !skeleton_neighbor { relation: catalog }
+      - event: VOTED_HELPFUL
+        weight: 0.12
+        counterparty: !global_popularity { entity: user }
+      - event: RETURNED
+        weight: 0.03
+        counterparty: !repeat_or_neighbor { relation: catalog, repeat_p: 0.60 }
+    activity: !pareto { scale: 1.0, shape: 1.6 }   # heavy-tailed: few prolific reviewers
+
+  # Paid/incentivized reviewers post more, skew positive, but are not (yet) coordinated.
+  - name: paid_reviewer
+    actor: user
+    actor_filter: [{ attr: kind, value: paid }]
+    timing:
+      rate_per_day: 0.6
+      burst_p: 0.30
+      burst_mean_len: 3.0
+    events:
+      - event: WROTE_REVIEW
+        weight: 0.70
+        counterparty: !global_popularity { entity: product }
+      - event: VOTED_HELPFUL
+        weight: 0.20
+        counterparty: !global_popularity { entity: user }
+      - event: PURCHASED
+        weight: 0.10
+        counterparty: !skeleton_neighbor { relation: catalog }
+    activity: !log_normal { mu: 0.3, sigma: 0.7 }
+
+constraints:
+  - name: star_range
+    check: !attr_range { event: WROTE_REVIEW, attr: star, min: 1.0, max: 5.0 }
+    description: ratings are bounded 1-5 stars
+  - name: verified_purchase_review
+    check: !documented { rule: "WROTE_REVIEW should be backed by a verified PURCHASED edge (FTC 16 CFR 465); high volume of unverified reviews ⇒ candidate" }
+  - name: per_user_inter_arrival
+    check: !rate_limit { event: WROTE_REVIEW, k: 8, window_s: 86400 }
+    description: ">8 reviews/user/day exceeds plausible honest inter-arrival τ (Xie et al. burst)"
+  - name: extreme_rating_burst
+    check: !sub_threshold_count { event: WROTE_REVIEW, attr: star, threshold: 6.0, floor: 5.0, k: 5, window_s: 172800 }
+    description: ">=5 five-star reviews per user within 48h ⇒ fake/burst candidate"
+  - name: users_per_device_cap
+    check: !documented { rule: "users sharing one device/IP fingerprint ≤ k (YelpChi R-U-R); exceeding ⇒ sockpuppet candidate" }
+  - name: positive_then_return
+    check: !documented { rule: "¬(positive WROTE_REVIEW ∧ later RETURNED of same product) — wardrobing / paid-review-then-return candidate" }
+  - name: group_target_jaccard
+    check: !documented { rule: "group co-review Jaccard(target products) > θ within a tight window ⇒ collusion-ring candidate (Mukherjee et al.)" }
+
+adversaries:
+  # Fake reviews: extreme ratings, exaggerated sentiment, low concrete detail (Ott et al.).
+  - intent: fake_reviews
+    description: >-
+      Solo paid/AI reviewers post extreme-star reviews with short, low-detail
+      text on a small target set (FTC 16 CFR 465 fake/AI reviews). Camouflage =
+      interleave benign votes/purchases and spread across products.
+    actor: user
+    stages:
+      - name: blitz
+        duration_days: !uniform { min: 2.0, max: 10.0 }
+        activity_multiplier: !uniform { min: 3.7719, max: 15.0875 }   # 1.0-4.0/day vs normal user 0.265/day
+        event: WROTE_REVIEW
+        scope: !victims
+          count: !uniform { min: 3.0, max: 12.0 }   # the target products
+        attr_overrides:
+          - attr: star
+            dist: !constant { value: 5.0 }
+          - attr: text_len
+            dist: !log_normal { mu: 3.2, sigma: 0.4 }   # exaggerated but thin
+          - attr: verified_purchase
+            dist: !constant { value: 0.0 }
+      - name: camo_votes
+        duration_days: !uniform { min: 1.0, max: 6.0 }
+        activity_multiplier: !uniform { min: 1.8859, max: 7.5437 }   # 0.5-2.0/day vs normal user 0.265/day
+        event: VOTED_HELPFUL
+        scope: !normal
+    camouflage: 0.5
+    prevalence_weight: 0.28
+    ring_size: !constant { value: 1.0 }   # singleton adversary
+    cascade_p: 0.05
+
+  # Collusion ring / spammer group: members co-review a shared target set in a tight window.
+  - intent: collusion_ring
+    description: >-
+      Coordinated spammer group floods a fixed target product set with
+      high-star reviews in a tight window (Mukherjee et al.; FTC review rings).
+      Camouflage = members also review many benign products (feature camo) and
+      cross-vote each other's reviews (relation camo, CARE-GNN).
+    actor: user
+    stages:
+      - name: coordinated_flood
+        duration_days: !uniform { min: 3.0, max: 9.0 }
+        activity_multiplier: !uniform { min: 3.7719, max: 11.3156 }   # 1.0-3.0/day vs normal user 0.265/day
+        event: WROTE_REVIEW
+        scope: !collector        # all ring members -> the shared target product(s)
+        attr_overrides:
+          - attr: star
+            dist: !constant { value: 5.0 }
+          - attr: text_len
+            dist: !log_normal { mu: 4.0, sigma: 0.6 }
+      - name: mutual_helpful
+        duration_days: !uniform { min: 2.0, max: 7.0 }
+        activity_multiplier: !uniform { min: 1.8859, max: 7.5437 }   # 0.5-2.0/day vs normal user 0.265/day
+        event: VOTED_HELPFUL
+        scope: !ring             # cross-vote within the ring (R-U-R relation camo)
+      - name: benign_spread
+        duration_days: !uniform { min: 5.0, max: 20.0 }
+        activity_multiplier: !uniform { min: 1.1316, max: 3.7719 }   # 0.3-1.0/day vs normal user 0.265/day
+        event: WROTE_REVIEW
+        scope: !normal           # dilute neighborhood with benign products
+    camouflage: 0.6
+    prevalence_weight: 0.26
+    ring_size: !uniform { min: 5.0, max: 20.0 }
+    cascade_p: 0.12
+
+  # Sockpuppets: one operator behind many accounts sharing a device/IP fingerprint.
+  - intent: sockpuppet
+    description: >-
+      A single operator drives many puppet accounts sharing a device/IP
+      fingerprint, posting correlated high-star reviews (YelpChi R-U-R).
+      Camouflage = account aging and staggered posting; ring linkage is the tell.
+    actor: user
+    stages:
+      - name: puppet_reviews
+        duration_days: !uniform { min: 4.0, max: 18.0 }
+        activity_multiplier: !uniform { min: 1.8859, max: 9.4297 }   # 0.5-2.5/day vs normal user 0.265/day
+        event: WROTE_REVIEW
+        scope: !collector        # puppets converge on a shared target
+        attr_overrides:
+          - attr: star
+            dist: !constant { value: 5.0 }
+          - attr: verified_purchase
+            dist: !constant { value: 0.0 }
+      - name: puppet_helpful
+        duration_days: !uniform { min: 3.0, max: 12.0 }
+        activity_multiplier: !uniform { min: 1.8859, max: 5.6578 }   # 0.5-1.5/day vs normal user 0.265/day
+        event: VOTED_HELPFUL
+        scope: !ring             # puppets upvote each other
+    camouflage: 0.55
+    prevalence_weight: 0.18
+    ring_size: !uniform { min: 3.0, max: 10.0 }
+    cascade_p: 0.10
+
+  # Singleton burst: a swarm of fresh one-shot accounts hits a young listing (Xie et al.).
+  - intent: singleton_burst
+    description: >-
+      Many fresh single-review accounts hit a new listing in a short burst to
+      seed its rank (Xie et al., KDD 2012). Each account fires once; the burst
+      shape on the product is the signal.
+    actor: user
+    stages:
+      - name: one_shot_flood
+        duration_days: !uniform { min: 0.5, max: 3.0 }
+        activity_multiplier: !uniform { min: 3.0175, max: 7.5437 }   # 0.8-2.0/day vs normal user 0.265/day
+        event: WROTE_REVIEW
+        scope: !collector        # converge on the seeded listing
+        attr_overrides:
+          - attr: star
+            dist: !constant { value: 5.0 }
+          - attr: text_len
+            dist: !log_normal { mu: 3.0, sigma: 0.5 }
+          - attr: verified_purchase
+            dist: !constant { value: 0.0 }
+    camouflage: 0.35
+    prevalence_weight: 0.16
+    ring_size: !uniform { min: 8.0, max: 30.0 }
+    cascade_p: 0.04
+
+  # Return fraud: wardrobing / empty-box after a positive review (purchase->review->return).
+  - intent: return_fraud
+    description: >-
+      Buyers purchase, post positive reviews, then return for refund
+      (wardrobing / empty-box). Camouflage = mix in legitimate keepers.
+    actor: user
+    stages:
+      - name: buy
+        duration_days: !uniform { min: 1.0, max: 4.0 }
+        activity_multiplier: !uniform { min: 3.7719, max: 11.3156 }   # 1.0-3.0/day vs normal user 0.265/day
+        event: PURCHASED
+        scope: !normal
+      - name: positive_review
+        duration_days: !uniform { min: 1.0, max: 3.0 }
+        activity_multiplier: !uniform { min: 1.8859, max: 5.6578 }   # 0.5-1.5/day vs normal user 0.265/day
+        event: WROTE_REVIEW
+        scope: !normal
+        attr_overrides:
+          - attr: star
+            dist: !constant { value: 5.0 }
+      - name: refund
+        duration_days: !uniform { min: 1.0, max: 7.0 }
+        activity_multiplier: !uniform { min: 3.7719, max: 11.3156 }   # 1.0-3.0/day vs normal user 0.265/day
+        event: RETURNED
+        scope: !normal
+        attr_overrides:
+          - attr: reason
+            dist: !constant { value: 3.0 }   # ordinal index -> wardrobing
+    camouflage: 0.5
+    prevalence_weight: 0.12
+    ring_size: !uniform { min: 1.0, max: 4.0 }
+    cascade_p: 0.06
+
+failures: []
+
+control:
+  prevalence: 0.02        # opinion-spam reviewers are rare (~1-3%, YelpChi/Amazon)
+  difficulty: 0.5
+  type_mix: []            # default: per-process prevalence weights
+  placement: !clustered_bursty { n_communities: 10, start_frac: 0.2, end_frac: 0.9 }
+  cascade: 1.0

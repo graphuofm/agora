@@ -1,0 +1,534 @@
+# AGORA built-in rule base — Domain 2: Crypto / Blockchain (Ethereum / DeFi).
+# Grounded in DOMAINS.md §2; standards provenance per CORPUS.md domain 2
+# (FATF VA/VASP, OFAC SDN digital-currency list, Ethereum EIPs, SoK DeFi attacks).
+# Anomaly source type: ADVERSARIAL.
+# YAML note: `!tag` selects an enum variant (serde_yaml external tagging).
+
+meta:
+  id: crypto
+  name: Crypto / Blockchain (Ethereum / DeFi)
+  description: >-
+    On-chain Ethereum transaction graph (EOAs, contracts, tokens, DEX liquidity
+    pools) with DeFi-era adversaries: wash trading, phishing/approve drains,
+    mixing/tumbling, pump-and-dump, rug pulls, and Ponzi schemes. Values are
+    heavy-tailed log-normal; exchange hot wallets are power-law super-hubs.
+  schema_version: 1
+  provenance:
+    - source: FATF VA/VASP Guidance (2021) + Targeted Update (June 2025)
+      url: https://www.fatf-gafi.org
+      version: "2025"
+      license_tier: B
+    - source: OFAC SDN + Digital Currency Address list (Treasury/OFAC)
+      url: https://github.com/0xB10C/ofac-sanctioned-digital-currency-addresses
+      license_tier: A
+    - source: Ethereum EIPs ERC-20/721/1155 (Transfer/Approval signatures)
+      url: https://eips.ethereum.org
+      license_tier: A
+    - source: "SoK: DeFi Attacks (Zhou et al., IEEE S&P 2023)"
+      url: https://arxiv.org/abs/2208.13035
+      version: "2023"
+      license_tier: A
+    - source: DOMAINS.md dossier 2 (XBlock phishing, Elliptic++, Ethereum Ponzi base rates)
+
+entity_types:
+  # Externally-owned accounts: user wallets, exchange hot wallets, mixers, scams.
+  - name: eoa
+    population_weight: 0.86
+    attributes:
+      - name: label
+        kind: !categorical { values: [user, exchange, mixer, scam, mev_bot], weights: [0.88, 0.04, 0.01, 0.02, 0.05] }
+      - name: jurisdiction
+        kind: !categorical { values: [US, EU, APAC, OFFSHORE, UNKNOWN], weights: [0.22, 0.20, 0.24, 0.14, 0.20] }
+      - name: kyc_level
+        kind: !ordinal { tiers: [none, basic, verified], weights: [0.55, 0.30, 0.15] }
+      - name: age_days
+        kind: !numeric { dist: !log_normal { mu: 5.5, sigma: 1.3 } }   # median ≈ 245d, heavy tail
+    state:
+      - name: balance
+        init: !log_normal { mu: 7.0, sigma: 2.0 }   # wei-scaled proxy; heavy tail
+      - name: nonce
+        init: !constant { value: 0.0 }
+      - name: cum_in
+        init: !constant { value: 0.0 }
+      - name: cum_out
+        init: !constant { value: 0.0 }
+      - name: tx_count
+        init: !constant { value: 0.0 }
+
+  # Deployed smart contracts: ERC-20/721, DEX pools, lending, Ponzi, proxy.
+  - name: contract
+    population_weight: 0.09
+    attributes:
+      - name: ctype
+        kind: !categorical { values: [erc20, erc721, dex_pool, lending, ponzi, proxy], weights: [0.40, 0.22, 0.18, 0.08, 0.02, 0.10] }
+      - name: is_verified
+        kind: !flag { p: 0.55 }
+    state:
+      - name: tvl
+        init: !log_normal { mu: 9.0, sigma: 2.0 }   # total value locked, heavy tail
+      - name: call_count
+        init: !constant { value: 0.0 }
+
+  # Fungible/non-fungible token contracts (supply, holders, liquidity proxy).
+  - name: token
+    population_weight: 0.03
+    attributes:
+      - name: standard
+        kind: !categorical { values: [erc20, erc721, erc1155], weights: [0.70, 0.22, 0.08] }
+      - name: is_stablecoin
+        kind: !flag { p: 0.12 }
+    state:
+      - name: supply
+        init: !log_normal { mu: 14.0, sigma: 2.5 }
+      - name: holders
+        init: !constant { value: 0.0 }
+
+  # AMM liquidity pools (reserves, price, LP supply) — the rug-pull surface.
+  - name: liquidity_pool
+    population_weight: 0.02
+    attributes:
+      - name: pair_kind
+        kind: !categorical { values: [stable_stable, blue_chip, long_tail], weights: [0.18, 0.32, 0.50] }
+    state:
+      - name: reserves
+        init: !log_normal { mu: 10.0, sigma: 2.2 }   # x·y=k surface; heavy tail
+      - name: lp_supply
+        init: !log_normal { mu: 8.0, sigma: 1.8 }
+
+relations:
+  # Peer transfer network among EOAs: exchange hot wallets become super-hubs.
+  - name: tx_net
+    src: eoa
+    dst: eoa
+    model: !preferential_attachment { m: 2 }
+    layer: skeleton
+    mean_degree: 4.0
+  # Which EOAs CAN call which contracts; Zipf popularity gives a heavy head
+  # (a few blue-chip routers/tokens absorb most calls).
+  - name: contract_use
+    src: eoa
+    dst: contract
+    model: !affiliation
+      popularity: !zipf { n: 1000000, exponent: 1.05 }
+    layer: skeleton
+    mean_degree: 6.0
+  # Token holdings: EOA -> token (heavy-tailed holder concentration).
+  - name: holding
+    src: eoa
+    dst: token
+    model: !affiliation
+      popularity: !zipf { n: 100000, exponent: 1.2 }
+    layer: skeleton
+    mean_degree: 3.0
+  # Which pools an EOA CAN swap against / provide liquidity to.
+  - name: pool_access
+    src: eoa
+    dst: liquidity_pool
+    model: !affiliation
+      popularity: !zipf { n: 50000, exponent: 1.15 }
+    layer: skeleton
+    mean_degree: 2.0
+
+event_types:
+  # Native value transfer / contract call (EIP base tx).
+  - name: tx
+    src: eoa
+    dst: eoa
+    attributes:
+      - name: value
+        kind: !numeric { dist: !log_normal { mu: 1.0, sigma: 2.2 } }   # ETH-scaled, heavy tail; many dust
+      - name: gas_price
+        kind: !numeric { dist: !log_normal { mu: 3.0, sigma: 0.6 } }   # gwei
+      - name: is_contract_call
+        kind: !flag { p: 0.45 }
+      - name: status
+        kind: !categorical { values: [success, reverted], weights: [0.94, 0.06] }
+    effects:
+      - !sub_from_src { var: balance, from_attr: value }
+      - !add_to_dst { var: balance, from_attr: value }
+      - !add_to_src { var: cum_out, from_attr: value }
+      - !add_to_dst { var: cum_in, from_attr: value }
+      - !increment_src { var: nonce }
+      - !increment_src { var: tx_count }
+
+  # ERC-20/721 Transfer event (token moves between EOAs).
+  - name: token_transfer
+    src: eoa
+    dst: eoa
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 4.0, sigma: 2.0 } }
+      - name: token_kind
+        kind: !categorical { values: [erc20, erc721, erc1155], weights: [0.72, 0.20, 0.08] }
+    effects:
+      - !increment_src { var: tx_count }
+      - !add_to_src { var: cum_out, from_attr: amount }
+      - !add_to_dst { var: cum_in, from_attr: amount }
+
+  # AMM swap against a liquidity pool.
+  - name: swap
+    src: eoa
+    dst: liquidity_pool
+    attributes:
+      - name: amount_in
+        kind: !numeric { dist: !log_normal { mu: 3.5, sigma: 1.8 } }
+      - name: price_impact
+        kind: !numeric { dist: !log_normal { mu: -4.0, sigma: 1.0 } }   # median ≈ 1.8% impact
+    effects:
+      - !sub_from_src { var: balance, from_attr: amount_in }
+      - !add_to_dst { var: reserves, from_attr: amount_in }
+      - !increment_src { var: tx_count }
+
+  # Provide liquidity to a pool (mints LP tokens).
+  - name: add_liquidity
+    src: eoa
+    dst: liquidity_pool
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 7.0, sigma: 1.5 } }
+    effects:
+      - !add_to_dst { var: reserves, from_attr: amount }
+      - !add_to_dst { var: lp_supply, from_attr: amount }
+      - !increment_src { var: tx_count }
+
+  # Remove liquidity (burns LP tokens) — the rug-pull primitive.
+  - name: remove_liquidity
+    src: eoa
+    dst: liquidity_pool
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 6.5, sigma: 1.6 } }
+    effects:
+      - !sub_from_dst { var: reserves, from_attr: amount }
+      - !sub_from_dst { var: lp_supply, from_attr: amount }
+      - !increment_src { var: tx_count }
+
+  # ERC-20 approve: grant spend allowance (the phishing-drain precursor).
+  - name: approve
+    src: eoa
+    dst: contract
+    attributes:
+      - name: allowance
+        kind: !numeric { dist: !log_normal { mu: 12.0, sigma: 2.0 } }   # often unlimited -> huge
+    effects:
+      - !increment_dst { var: call_count }
+      - !increment_src { var: tx_count }
+
+  # Deploy a new contract.
+  - name: contract_creation
+    src: eoa
+    dst: contract
+    attributes:
+      - name: gas_used
+        kind: !numeric { dist: !log_normal { mu: 13.0, sigma: 0.5 } }
+    effects:
+      - !increment_src { var: nonce }
+      - !increment_src { var: tx_count }
+
+behaviors:
+  # Retail wallets: low cadence, repeat counterparties, 24/7 with mild market cycle.
+  - name: retail_user
+    actor: eoa
+    actor_filter: [{ attr: label, value: user }]
+    timing:
+      rate_per_day: 0.6
+      diurnal: [0.7,0.6,0.5,0.5,0.5,0.6,0.7,0.9,1.1,1.2,1.3,1.3,1.3,1.3,1.4,1.4,1.5,1.5,1.4,1.3,1.2,1.1,0.9,0.8]
+      weekly: [1.0, 1.0, 1.0, 1.0, 1.05, 1.1, 1.05]   # weekend retail bump
+      burst_p: 0.10
+      burst_mean_len: 2.0
+    events:
+      - event: tx
+        weight: 0.40
+        counterparty: !repeat_or_neighbor { relation: tx_net, repeat_p: 0.50 }
+      - event: token_transfer
+        weight: 0.22
+        counterparty: !repeat_or_neighbor { relation: tx_net, repeat_p: 0.45 }
+      - event: swap
+        weight: 0.22
+        counterparty: !repeat_or_neighbor { relation: pool_access, repeat_p: 0.40 }
+      - event: approve
+        weight: 0.08
+        counterparty: !skeleton_neighbor { relation: contract_use }
+      - event: add_liquidity
+        weight: 0.05
+        counterparty: !skeleton_neighbor { relation: pool_access }
+      - event: remove_liquidity
+        weight: 0.03
+        counterparty: !skeleton_neighbor { relation: pool_access }
+    activity: !log_normal { mu: 0.0, sigma: 0.7 }
+
+  # Exchange hot wallets: very high throughput, global popularity counterparties.
+  - name: exchange_hot_wallet
+    actor: eoa
+    actor_filter: [{ attr: label, value: exchange }]
+    timing:
+      rate_per_day: 240.0
+      diurnal: [0.9,0.85,0.8,0.8,0.85,0.9,0.95,1.0,1.05,1.1,1.1,1.15,1.15,1.15,1.1,1.1,1.05,1.05,1.0,1.0,0.95,0.95,0.9,0.9]
+      burst_p: 0.30
+      burst_mean_len: 4.0
+    events:
+      - event: tx
+        weight: 0.62
+        counterparty: !global_popularity { entity: eoa }
+      - event: token_transfer
+        weight: 0.38
+        counterparty: !global_popularity { entity: eoa }
+    activity: !log_normal { mu: 0.5, sigma: 0.9 }
+
+  # MEV bots: sub-second bursts of swaps; very high rate, tight bursts.
+  - name: mev_bot
+    actor: eoa
+    actor_filter: [{ attr: label, value: mev_bot }]
+    timing:
+      rate_per_day: 600.0
+      burst_p: 0.55
+      burst_mean_len: 6.0
+    events:
+      - event: swap
+        weight: 0.80
+        counterparty: !repeat_or_neighbor { relation: pool_access, repeat_p: 0.85 }
+      - event: tx
+        weight: 0.20
+        counterparty: !repeat_or_neighbor { relation: tx_net, repeat_p: 0.80 }
+    activity: !log_normal { mu: 0.6, sigma: 1.0 }
+
+constraints:
+  # Φ: legality predicates — violations are detector candidates, not labels.
+  - name: balance_non_negative
+    check: !state_non_negative { entity: eoa, var: balance }
+    description: an EOA cannot spend more native value than it holds
+  - name: pool_reserves_non_negative
+    check: !state_non_negative { entity: liquidity_pool, var: reserves }
+    description: AMM reserves cannot go negative (x·y=k floor; abrupt drain ⇒ rug candidate)
+  - name: tx_value_range
+    check: !attr_range { event: tx, attr: value, min: 0.0, max: 1.0e12 }
+  - name: swap_amount_range
+    check: !attr_range { event: swap, attr: amount_in, min: 0.0, max: 1.0e12 }
+  - name: swap_velocity_cap
+    check: !rate_limit { event: swap, k: 2000, window_s: 86400 }
+    description: implausible per-wallet swap velocity (beyond MEV-bot norms)
+  - name: token_conservation
+    check: !documented { rule: "sum(token_transfer amount out) must reconcile with mint/burn; excess mint ⇒ hidden-mint flag (EIP-20 Transfer accounting)" }
+  - name: lp_invariant
+    check: !documented { rule: "near-total remove_liquidity by pool creator shortly after add ⇒ rug-pull candidate (SoK DeFi)" }
+  - name: wash_cycle
+    check: !documented { rule: "frequent near-closed conserved cycles among related addresses with volume ≫ unique counterparties ⇒ wash-trading candidate" }
+  - name: mixer_denominations
+    check: !documented { rule: "unmatched fixed-denomination in/out at a mixer breaks linkability ⇒ tumbling candidate (FATF VA obfuscation)" }
+  - name: holder_concentration
+    check: !documented { rule: "top-holder share above bound ⇒ pump-and-dump / insider-concentration candidate" }
+
+adversaries:
+  # Wash trading: tight self-cycles among sybil wallets; volume ≫ counterparties.
+  # !chain produces the i→i+1→...→i cycle; !ring would break the tight-cycle shape.
+  - intent: wash_trading
+    description: >-
+      Sybil wallets self-trade in tight closed cycles to inflate apparent
+      volume; unique counterparties stay tiny relative to volume. Camouflage
+      via additional sybil wallets and routing through real pools.
+    actor: eoa
+    stages:
+      - name: cycle_volume
+        duration_days: !uniform { min: 2.0, max: 10.0 }
+        activity_multiplier: !uniform { min: 0.0180, max: 0.0674 }   # 8.0-30.0/day vs normal eoa 445.4/day
+        event: token_transfer
+        scope: !chain
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 8.0, sigma: 0.5 }
+      - name: pool_wash
+        duration_days: !uniform { min: 1.0, max: 5.0 }
+        activity_multiplier: !uniform { min: 0.0135, max: 0.0449 }   # 6.0-20.0/day vs normal eoa 445.4/day
+        event: swap
+        scope: !normal
+        attr_overrides:
+          - attr: amount_in
+            dist: !log_normal { mu: 7.0, sigma: 0.6 }
+    camouflage: 0.55
+    prevalence_weight: 0.22
+    ring_size: !uniform { min: 3.0, max: 10.0 }
+    cascade_p: 0.10
+
+  # Phishing drain: victims approve a malicious contract, then funds fan-in to
+  # one collector; camouflage = relay to fresh wallets.
+  - intent: phishing_drain
+    description: >-
+      Fake airdrop / approval lure: victims grant allowance via approve, then
+      the operator drains tokens fan-in to a single collector (FATF VA scam
+      typology). Camouflage by relaying drained funds to fresh wallets.
+    actor: eoa
+    stages:
+      - name: bait_approve
+        duration_days: !uniform { min: 1.0, max: 7.0 }
+        activity_multiplier: !uniform { min: 0.0011, max: 0.0045 }   # 0.5-2.0/day vs normal eoa 445.4/day
+        event: approve
+        scope: !victims
+          count: !uniform { min: 8.0, max: 40.0 }
+        attr_overrides:
+          - attr: allowance
+            dist: !log_normal { mu: 16.0, sigma: 0.5 }   # near-unlimited allowance
+      - name: drain_to_collector
+        duration_days: !uniform { min: 0.5, max: 3.0 }
+        # TODO(rates): k unreviewed — direction changed (collector -> sources),
+        # so k now means "drained transfers received per operator wallet per
+        # day". Needs re-grounding.
+        activity_multiplier: !uniform { min: 0.0090, max: 0.0337 }   # 4.0-15.0/day vs normal eoa 445.4/day
+        event: token_transfer
+        # The drain moves tokens FROM victims TO the operator's wallets. Under
+        # the old `!collector` the operator wallets sent to members[0] and the
+        # victims baited in `bait_approve` never appeared in the drain at all —
+        # the approve had no consequence and the flow ran backwards.
+        # NOTE (known gap): this pool is sampled independently of the
+        # `bait_approve` victim pool, so the approve -> drain linkage is
+        # directional but not identity-linked. Sharing one victim pool across
+        # stages needs cross-stage campaign state, which does not exist yet.
+        scope: !sources
+          count: !uniform { min: 8.0, max: 40.0 }
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 9.0, sigma: 0.8 }
+    camouflage: 0.45
+    prevalence_weight: 0.20
+    ring_size: !uniform { min: 2.0, max: 6.0 }
+    cascade_p: 0.12
+
+  # Mixing/tumbling: fixed-denomination in/out breaks linkability.
+  - intent: mixing
+    description: >-
+      Tumbler deposits/withdrawals in fixed denominations to break the on-chain
+      link between source and destination (OFAC-sanctioned mixer pattern).
+      Camouflage via withdrawal delays and relayers.
+    actor: eoa
+    stages:
+      - name: deposit_fixed
+        duration_days: !uniform { min: 1.0, max: 6.0 }
+        activity_multiplier: !uniform { min: 0.0022, max: 0.0112 }   # 1.0-5.0/day vs normal eoa 445.4/day
+        event: tx
+        scope: !collector
+        attr_overrides:
+          - attr: value
+            dist: !constant { value: 10.0 }   # fixed 10-unit denomination
+      - name: withdraw_fixed
+        duration_days: !uniform { min: 2.0, max: 12.0 }
+        activity_multiplier: !uniform { min: 0.0022, max: 0.0090 }   # 1.0-4.0/day vs normal eoa 445.4/day
+        event: tx
+        scope: !victims
+          count: !uniform { min: 5.0, max: 20.0 }
+        attr_overrides:
+          - attr: value
+            dist: !constant { value: 10.0 }   # identical denomination out
+    camouflage: 0.65
+    prevalence_weight: 0.16
+    ring_size: !uniform { min: 4.0, max: 14.0 }
+    cascade_p: 0.08
+
+  # Pump-and-dump: synchronized buys spike the price, insiders sell into it.
+  - intent: pump_and_dump
+    description: >-
+      Coordinated wallets buy a long-tail token in sync to spike price, then
+      insiders dump. Camouflage via staggered entries that mimic organic demand.
+    actor: eoa
+    stages:
+      - name: accumulate
+        duration_days: !uniform { min: 1.0, max: 4.0 }
+        activity_multiplier: !uniform { min: 0.0112, max: 0.0449 }   # 5.0-20.0/day vs normal eoa 445.4/day
+        event: swap
+        scope: !collector       # all coordinated wallets swap against ONE pool
+        attr_overrides:
+          - attr: amount_in
+            dist: !log_normal { mu: 6.5, sigma: 0.5 }
+      - name: dump
+        duration_days: !uniform { min: 0.25, max: 1.5 }
+        activity_multiplier: !uniform { min: 0.0225, max: 0.0898 }   # 10.0-40.0/day vs normal eoa 445.4/day
+        event: swap
+        scope: !collector
+        attr_overrides:
+          - attr: amount_in
+            dist: !log_normal { mu: 9.0, sigma: 0.6 }
+          - attr: price_impact
+            dist: !log_normal { mu: -1.0, sigma: 0.6 }   # large impact on dump
+    camouflage: 0.40
+    prevalence_weight: 0.16
+    ring_size: !uniform { min: 5.0, max: 25.0 }
+    cascade_p: 0.06
+
+  # Rug pull: creator seeds liquidity then yanks it near-total.
+  - intent: rug_pull
+    description: >-
+      Contract creator provides initial liquidity to attract buyers, then
+      removes near-total reserves (SoK DeFi exit-scam). Camouflage via a brief
+      legitimate-looking trading window before the pull.
+    actor: eoa
+    stages:
+      - name: seed_liquidity
+        duration_days: !uniform { min: 1.0, max: 5.0 }
+        activity_multiplier: !uniform { min: 0.0011, max: 0.0045 }   # 0.5-2.0/day vs normal eoa 445.4/day
+        event: add_liquidity
+        scope: !normal
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 10.0, sigma: 0.4 }
+      - name: pull
+        duration_days: !uniform { min: 0.1, max: 1.0 }
+        activity_multiplier: !uniform { min: 0.0045, max: 0.0180 }   # 2.0-8.0/day vs normal eoa 445.4/day
+        event: remove_liquidity
+        scope: !normal
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 11.0, sigma: 0.3 }   # near-total drain
+    camouflage: 0.35
+    prevalence_weight: 0.14
+    ring_size: !uniform { min: 1.0, max: 4.0 }
+    cascade_p: 0.05
+
+  # Ponzi: later deposits pay earlier participants; collapse on inflow drop.
+  - intent: ponzi
+    description: >-
+      Ponzi contract where later "investor" deposits fund earlier payouts
+      (fan-in collector then redistributive payouts), collapsing when inflow
+      stalls (Ethereum Ponzi typology). Camouflage via steady payout cadence.
+    actor: eoa
+    stages:
+      - name: collect_deposits
+        duration_days: !uniform { min: 10.0, max: 40.0 }
+        activity_multiplier: !uniform { min: 0.0022, max: 0.0135 }   # 1.0-6.0/day vs normal eoa 445.4/day
+        event: tx
+        # Investors -> operator. `!collector` on a same-type event anchors on
+        # members[0] (the operator) and lets the other members act, which is
+        # already the fan-in leg of the star; kept as-is. Together with the
+        # `!hub` payout leg below, members[0] is the operator in BOTH stages.
+        scope: !collector
+        attr_overrides:
+          - attr: value
+            dist: !log_normal { mu: 7.0, sigma: 0.7 }
+      - name: payout_earlier
+        duration_days: !uniform { min: 10.0, max: 40.0 }
+        # TODO(rates): k unreviewed — under `!hub` the OPERATOR alone emits this
+        # stage (previously every ring member did), so k is now "payouts made by
+        # the operator per day", not "payouts per member per day". The per-stage
+        # volume therefore dropped by ~ring_size and k needs re-grounding
+        # against the Ethereum Ponzi payout cadence.
+        activity_multiplier: !uniform { min: 0.0011, max: 0.0067 }   # 0.5-3.0/day vs normal eoa 445.4/day
+        event: tx
+        # A Ponzi is a STAR, not a clique: the operator pays the investors and
+        # investors never pay each other. `!ring` picked a uniform random
+        # co-member as counterparty, so investor->investor edges dominated and
+        # the motif converged to a clique — structurally the wrong typology
+        # (and indistinguishable from wash trading).
+        scope: !hub
+        attr_overrides:
+          - attr: value
+            dist: !log_normal { mu: 6.0, sigma: 0.6 }
+    camouflage: 0.50
+    prevalence_weight: 0.12
+    ring_size: !uniform { min: 6.0, max: 30.0 }
+    cascade_p: 0.04
+
+failures: []
+
+control:
+  prevalence: 0.02        # illicit addresses are rare on-chain (XBlock/Elliptic++ base rates)
+  difficulty: 0.5
+  type_mix: []            # default: per-process prevalence weights
+  placement: !clustered { n_communities: 10 }
+  cascade: 1.0

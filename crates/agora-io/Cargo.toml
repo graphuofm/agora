@@ -1,0 +1,15 @@
+[package]
+name = "agora-io"
+description = "Streaming shard writers: Parquet / CSV / GraphML"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+agora-rules.workspace = true
+agora-core.workspace = true
+parquet = "59.0.0"
+arrow-array = "59.0.0"
+arrow-schema = "59.0.0"

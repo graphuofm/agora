@@ -1,0 +1,23 @@
+[package]
+name = "agora-py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "PyO3 bindings for AGORA: install and run the graph-benchmark generator from Python."
+
+[lib]
+name = "agora_py"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
+numpy = "0.23"
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+
+agora-core = { workspace = true }
+agora-rules = { workspace = true }
+agora-io = { workspace = true }
+agora-host = { workspace = true }

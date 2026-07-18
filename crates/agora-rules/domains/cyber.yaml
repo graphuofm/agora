@@ -1,0 +1,456 @@
+# AGORA built-in rule base — Domain 3: Cybersecurity (Network IDS + APT).
+# Grounded in DOMAINS.md §3; standards provenance per CORPUS.md domain 3
+# (MITRE ATT&CK STIX, CICIDS2017, NIST SP 800-61/94, DARPA OpTC, LANL).
+# Anomaly source type: ADVERSARIAL (APT = low base-rate, high camouflage).
+# YAML note: `!tag` selects an enum variant (serde_yaml external tagging).
+# ATT&CK taxonomy attrs use `!taxonomy` with "TACTIC/TECHNIQUE" path strings.
+
+meta:
+  id: cyber
+  name: Cybersecurity (IDS + APT)
+  description: >-
+    Enterprise network telemetry (hosts, users, processes, services) with
+    MITRE ATT&CK-mapped intrusions: recon scanning, brute force, lateral
+    movement, C2 beaconing, exfiltration, and privilege escalation. Packet
+    sizes are bimodal, activity is diurnal, host degree is power-law; APT
+    chains span weeks at a low base rate with heavy camouflage.
+  schema_version: 1
+  provenance:
+    - source: MITRE ATT&CK v19.x (STIX 2.1; tactics→techniques)
+      url: https://github.com/mitre-attack/attack-stix-data
+      version: "19"
+      license_tier: A
+    - source: NIST SP 800-61 Rev 3 (Incident Handling lifecycle, 2025)
+      url: https://csrc.nist.gov
+      version: "Rev 3"
+      license_tier: A
+    - source: NIST SP 800-94 (IDPS detection methodologies)
+      url: https://csrc.nist.gov
+      license_tier: A
+    - source: CICIDS2017 (Sharafaldin et al., ICISSP 2018; labeled flows)
+      url: https://www.unb.ca/cic/datasets
+      version: "2017"
+      license_tier: A
+    - source: DOMAINS.md dossier 3 (DARPA OpTC, LANL red-team base rates)
+
+entity_types:
+  # Hosts: workstations, servers, domain controllers — power-law flow degree.
+  - name: host
+    population_weight: 0.55
+    attributes:
+      - name: os
+        kind: !categorical { values: [windows, linux, macos], weights: [0.70, 0.22, 0.08] }
+      - name: role
+        kind: !categorical { values: [workstation, server, domain_controller, dmz], weights: [0.78, 0.15, 0.02, 0.05] }
+      - name: priv_tier
+        kind: !ordinal { tiers: [low, medium, high], weights: [0.72, 0.22, 0.06] }
+    state:
+      - name: compromise_stage
+        init: !constant { value: 0.0 }
+      - name: bytes_in
+        init: !constant { value: 0.0 }
+      - name: bytes_out
+        init: !constant { value: 0.0 }
+      - name: flow_count
+        init: !constant { value: 0.0 }
+
+  # Users/accounts: role, privilege, host affinity.
+  - name: user
+    population_weight: 0.28
+    attributes:
+      - name: role
+        kind: !categorical { values: [employee, admin, service_account, contractor], weights: [0.74, 0.06, 0.14, 0.06] }
+      - name: priv_level
+        kind: !ordinal { tiers: [standard, elevated, domain_admin], weights: [0.82, 0.14, 0.04] }
+      - name: department
+        kind: !categorical { values: [eng, sales, finance, hr, it, exec], weights: [0.30, 0.22, 0.12, 0.10, 0.18, 0.08] }
+    state:
+      - name: failed_auths
+        init: !constant { value: 0.0 }
+      - name: session_count
+        init: !constant { value: 0.0 }
+
+  # Processes: parent/child exec tree, integrity level.
+  - name: process
+    population_weight: 0.14
+    attributes:
+      - name: integrity
+        kind: !ordinal { tiers: [low, medium, high, system], weights: [0.20, 0.58, 0.18, 0.04] }
+      - name: is_lolbin
+        kind: !flag { p: 0.12 }   # living-off-the-land binary (powershell, wmic, ...)
+    state:
+      - name: child_count
+        init: !constant { value: 0.0 }
+      - name: alive
+        init: !constant { value: 1.0 }
+
+  # Network services / listening ports.
+  - name: service
+    population_weight: 0.03
+    attributes:
+      - name: proto
+        kind: !categorical { values: [http, https, smb, rdp, ssh, dns, ldap, other], weights: [0.16, 0.30, 0.12, 0.08, 0.08, 0.10, 0.06, 0.10] }
+      - name: internet_facing
+        kind: !flag { p: 0.18 }
+    state:
+      - name: conn_count
+        init: !constant { value: 0.0 }
+
+relations:
+  # Host-to-host reachability: power-law degree (servers/DCs are hubs).
+  - name: net_reach
+    src: host
+    dst: host
+    model: !preferential_attachment { m: 3 }
+    layer: skeleton
+    mean_degree: 8.0
+  # Stable, small user→host affinity (most users touch few hosts).
+  - name: host_affinity
+    src: user
+    dst: host
+    model: !affiliation
+      popularity: !zipf { n: 100000, exponent: 1.4 }
+    layer: skeleton
+    mean_degree: 2.0
+  # Which services each host CAN reach (Zipf: a few central services dominate).
+  - name: service_access
+    src: host
+    dst: service
+    model: !affiliation
+      popularity: !zipf { n: 50000, exponent: 1.2 }
+    layer: skeleton
+    mean_degree: 5.0
+  # Process exec tree within the host fleet (parent->child).
+  - name: exec_tree
+    src: process
+    dst: process
+    model: !forest_fire { forward_p: 0.35, backward_p: 0.10 }
+    layer: skeleton
+    mean_degree: 2.5
+
+event_types:
+  # Network flow host->host (CICFlowMeter-style; bimodal packet sizes).
+  - name: flow
+    src: host
+    dst: host
+    attributes:
+      - name: fwd_bytes
+        kind: !numeric { dist: !log_normal { mu: 6.0, sigma: 2.2 } }   # elephant/mice heavy tail
+      - name: duration_s
+        kind: !numeric { dist: !log_normal { mu: 0.5, sigma: 1.5 } }
+      - name: pkt_size
+        kind: !categorical { values: [control, mtu], weights: [0.58, 0.42] }   # ~40-100B vs ~1500B bimodal
+      - name: proto
+        kind: !categorical { values: [tcp, udp, icmp], weights: [0.82, 0.15, 0.03] }
+      - name: technique
+        kind: !taxonomy { paths: ["TA0011/T1071", "TA0010/T1041", "TA0008/T1021", "TA0007/T1046"], weights: [0.40, 0.20, 0.25, 0.15] }
+    effects:
+      - !add_to_src { var: bytes_out, from_attr: fwd_bytes }
+      - !add_to_dst { var: bytes_in, from_attr: fwd_bytes }
+      - !increment_src { var: flow_count }
+
+  # Authentication user->host (Kerberos/NTLM; mostly successful).
+  - name: auth
+    src: user
+    dst: host
+    attributes:
+      - name: auth_type
+        kind: !categorical { values: [kerberos, ntlm, local], weights: [0.62, 0.30, 0.08] }
+      - name: logon_type
+        kind: !categorical { values: [interactive, network, remote_interactive, service], weights: [0.34, 0.40, 0.10, 0.16] }
+      - name: success
+        kind: !flag { p: 0.94 }
+      - name: technique
+        kind: !taxonomy { paths: ["TA0006/T1110", "TA0008/T1021", "TA0004/T1078"], weights: [0.40, 0.40, 0.20] }
+    effects:
+      - !increment_src { var: session_count }
+      - !increment_dst { var: flow_count }
+
+  # Process execution proc->proc (parent spawns child).
+  - name: process_exec
+    src: process
+    dst: process
+    attributes:
+      - name: image_kind
+        kind: !categorical { values: [system, app, script, lolbin, unknown], weights: [0.30, 0.42, 0.14, 0.10, 0.04] }
+      - name: technique
+        kind: !taxonomy { paths: ["TA0004/T1068", "TA0002/T1059", "TA0005/T1218"], weights: [0.30, 0.45, 0.25] }
+    effects:
+      - !increment_src { var: child_count }
+
+  # DNS / C2 lookup host->service.
+  - name: dns
+    src: host
+    dst: service
+    attributes:
+      - name: query_len
+        kind: !numeric { dist: !log_normal { mu: 2.5, sigma: 0.8 } }
+      - name: is_nxdomain
+        kind: !flag { p: 0.06 }
+      - name: technique
+        kind: !taxonomy { paths: ["TA0011/T1071", "TA0011/T1568"], weights: [0.70, 0.30] }   # app-layer C2 / DGA
+    effects:
+      - !increment_dst { var: conn_count }
+
+behaviors:
+  # Employee workstations: diurnal work hours, weekday-heavy, repeat hosts.
+  - name: employee_activity
+    actor: user
+    actor_filter: [{ attr: role, value: employee }]
+    timing:
+      rate_per_day: 30.0
+      diurnal: [0.1,0.05,0.05,0.05,0.05,0.1,0.3,0.8,1.6,2.0,2.1,2.0,1.7,2.0,2.1,2.0,1.8,1.3,0.7,0.4,0.3,0.2,0.15,0.1]
+      weekly: [1.2, 1.2, 1.2, 1.2, 1.1, 0.25, 0.2]   # weekday work hours
+      burst_p: 0.20
+      burst_mean_len: 3.0
+    events:
+      # A user emits user-sourced events only (auth user->host). Host-sourced
+      # DNS/flow live in host_traffic; process exec lives in process_activity.
+      - event: auth
+        weight: 1.0
+        counterparty: !repeat_or_neighbor { relation: host_affinity, repeat_p: 0.80 }
+    activity: !log_normal { mu: 0.0, sigma: 0.6 }
+
+  # Process exec tree: processes spawn children (the host-internal "muscle").
+  - name: process_activity
+    actor: process
+    timing:
+      rate_per_day: 8.0
+      diurnal: [0.3,0.25,0.25,0.25,0.3,0.4,0.7,1.2,1.7,1.9,1.9,1.8,1.6,1.8,1.9,1.8,1.6,1.2,0.8,0.6,0.5,0.4,0.35,0.3]
+      weekly: [1.15, 1.15, 1.15, 1.15, 1.1, 0.6, 0.55]
+      burst_p: 0.30
+      burst_mean_len: 4.0
+    events:
+      - event: process_exec
+        weight: 1.0
+        counterparty: !skeleton_neighbor { relation: exec_tree }
+    activity: !log_normal { mu: 0.0, sigma: 0.7 }
+
+  # Hosts generate the bulk of network flows (server-to-server, telemetry).
+  - name: host_traffic
+    actor: host
+    timing:
+      rate_per_day: 120.0
+      diurnal: [0.4,0.35,0.3,0.3,0.35,0.5,0.7,1.0,1.4,1.6,1.6,1.5,1.4,1.5,1.6,1.6,1.5,1.2,0.9,0.7,0.6,0.5,0.45,0.4]
+      weekly: [1.15, 1.15, 1.15, 1.15, 1.1, 0.6, 0.55]
+      burst_p: 0.25
+      burst_mean_len: 4.0
+    events:
+      - event: flow
+        weight: 0.80
+        counterparty: !repeat_or_neighbor { relation: net_reach, repeat_p: 0.75 }
+      - event: dns
+        weight: 0.20
+        counterparty: !global_popularity { entity: service }
+    activity: !log_normal { mu: 0.0, sigma: 0.8 }
+
+  # Service accounts: high-cadence machine auth, business-hours-agnostic.
+  - name: service_account_activity
+    actor: user
+    actor_filter: [{ attr: role, value: service_account }]
+    timing:
+      rate_per_day: 200.0
+      burst_p: 0.10
+      burst_mean_len: 2.0
+    events:
+      - event: auth
+        weight: 1.0
+        counterparty: !repeat_or_neighbor { relation: host_affinity, repeat_p: 0.92 }
+    activity: !log_normal { mu: 0.2, sigma: 0.5 }
+
+constraints:
+  # Φ: legality predicates — violations are detector candidates, not labels.
+  - name: fwd_bytes_non_negative
+    check: !attr_range { event: flow, attr: fwd_bytes, min: 0.0, max: 1.0e12 }
+    description: bytes ≥ 0 (flow counters never negative)
+  - name: flow_duration_non_negative
+    check: !attr_range { event: flow, attr: duration_s, min: 0.0, max: 1.0e7 }
+    description: flow duration ≥ 0
+  - name: auth_failure_burst
+    check: !rate_limit { event: auth, k: 50, window_s: 300 }
+    description: ">50 auth attempts/user in 5 min ⇒ brute-force candidate (T1110, CICIDS2017)"
+  - name: scan_fanout
+    check: !rate_limit { event: flow, k: 300, window_s: 60 }
+    description: ">300 flows/host in 60s ⇒ recon-scan fan-out candidate (T1046)"
+  - name: dns_beacon_regularity
+    check: !rate_limit { event: dns, k: 500, window_s: 3600 }
+    description: implausible per-host DNS rate (beaconing / DGA churn; T1071/T1568)
+  - name: session_before_auth
+    check: !documented { rule: "auth on a host with no prior valid session for the user ⇒ novel-edge / lateral-movement candidate (T1021, NIST 800-94 stateful-protocol)" }
+  - name: live_parent_required
+    check: !documented { rule: "process_exec requires a live parent process; orphan exec ⇒ injection candidate" }
+  - name: priv_jump_requires_escalation
+    check: !documented { rule: "integrity jump (low→high/system) without a preceding escalation event ⇒ privilege-escalation candidate (T1068)" }
+  - name: egress_known_good
+    check: !documented { rule: "large outbound flow to a rare external dst off-hours ⇒ exfiltration candidate (T1041, NIST 800-61)" }
+
+adversaries:
+  # Recon scan (T1046): one host probes many fresh victims with tiny flows.
+  - intent: recon_scan
+    description: >-
+      Network service discovery: a foothold host sprays tiny connection
+      attempts (many RSTs) across many hosts (MITRE T1046). Camouflage via
+      slow/distributed scanning that blends into the diurnal baseline.
+    actor: host
+    stages:
+      - name: sweep
+        duration_days: !uniform { min: 0.1, max: 2.0 }
+        activity_multiplier: !uniform { min: 0.3043, max: 2.4345 }   # 100-800/day vs host normal 328.6/day
+        event: flow
+        scope: !victims
+          count: !uniform { min: 30.0, max: 200.0 }
+        attr_overrides:
+          - attr: fwd_bytes
+            dist: !log_normal { mu: 3.0, sigma: 0.5 }   # tiny probe flows
+          - attr: technique
+            dist: !constant { value: 0.0 }   # taxonomy idx 0 -> TA0007/T1046
+    camouflage: 0.45
+    prevalence_weight: 0.18
+    ring_size: !uniform { min: 1.0, max: 3.0 }
+    cascade_p: 0.10
+
+  # Brute force (T1110): many failed auths fan-in to one target host/account.
+  - intent: brute_force
+    description: >-
+      Credential brute force / password spraying: many failed authentications
+      converge on a target before a success (MITRE T1110). Camouflage by
+      spraying low-and-slow across accounts to stay under lockout thresholds.
+    actor: user
+    stages:
+      - name: hammer
+        duration_days: !uniform { min: 0.05, max: 1.0 }
+        activity_multiplier: !uniform { min: 2.2305, max: 22.3049 }  # 200-2000/day vs user normal 89.7/day
+        event: auth
+        scope: !collector
+        attr_overrides:
+          - attr: success
+            dist: !constant { value: 0.0 }   # flag false: failed attempts
+          - attr: technique
+            dist: !constant { value: 0.0 }   # TA0006/T1110
+    camouflage: 0.40
+    prevalence_weight: 0.18
+    ring_size: !uniform { min: 1.0, max: 4.0 }
+    cascade_p: 0.08
+
+  # Lateral movement (T1021): novel auth edges between low-affinity hosts.
+  - intent: lateral_movement
+    description: >-
+      Remote-service lateral movement (SMB/RDP) creating novel auth edges
+      between hosts with no prior affinity, using valid creds during business
+      hours (MITRE T1021). Camouflage via legitimate logon types and timing.
+    actor: user
+    stages:
+      - name: pivot
+        duration_days: !uniform { min: 1.0, max: 7.0 }
+        activity_multiplier: !uniform { min: 0.0223, max: 0.1115 }   # 2-10/day vs user normal 89.7/day
+        event: auth
+        scope: !victims
+          count: !uniform { min: 3.0, max: 12.0 }
+        attr_overrides:
+          - attr: success
+            dist: !constant { value: 1.0 }   # valid creds succeed
+          - attr: logon_type
+            dist: !constant { value: 0.0 }
+          - attr: technique
+            dist: !constant { value: 1.0 }   # TA0008/T1021
+    camouflage: 0.65
+    prevalence_weight: 0.16
+    ring_size: !uniform { min: 1.0, max: 5.0 }
+    cascade_p: 0.20
+
+  # C2 beacon (T1071): periodic low-volume egress to a controller.
+  - intent: c2_beacon
+    description: >-
+      Application-layer command-and-control beaconing: periodic, low-volume
+      egress to a controller (MITRE T1071). Camouflage via jitter and HTTPS/DGA
+      so the cadence resembles normal polling.
+    actor: host
+    stages:
+      - name: beacon
+        duration_days: !uniform { min: 3.0, max: 21.0 }
+        activity_multiplier: !uniform { min: 0.0730, max: 0.2921 }   # 24-96/day vs host normal 328.6/day   # ~hourly to ~15-min beacons
+        event: dns
+        scope: !collector
+        attr_overrides:
+          - attr: query_len
+            dist: !log_normal { mu: 4.0, sigma: 0.3 }   # long DGA-ish names
+          - attr: technique
+            dist: !constant { value: 1.0 }   # TA0011/T1568 DGA
+    camouflage: 0.70
+    prevalence_weight: 0.16
+    ring_size: !uniform { min: 1.0, max: 3.0 }
+    cascade_p: 0.05
+
+  # Exfiltration (T1041): large outbound to a rare dst, off-hours chunking.
+  - intent: exfiltration
+    description: >-
+      Exfiltration over the C2 channel: large outbound transfers to a rare
+      destination, off-hours (MITRE T1041). Camouflage via low-and-slow
+      chunking timed to backup windows.
+    actor: host
+    stages:
+      - name: stage_chunks
+        duration_days: !uniform { min: 0.5, max: 5.0 }
+        activity_multiplier: !uniform { min: 0.0152, max: 0.0913 }   # 5-30/day vs host normal 328.6/day
+        event: flow
+        scope: !collector
+        attr_overrides:
+          - attr: fwd_bytes
+            dist: !log_normal { mu: 14.0, sigma: 0.8 }   # large transfers
+          - attr: technique
+            dist: !constant { value: 1.0 }   # TA0010/T1041
+    camouflage: 0.60
+    prevalence_weight: 0.16
+    ring_size: !uniform { min: 1.0, max: 2.0 }
+    cascade_p: 0.04
+
+  # Privilege escalation (T1068): integrity jump via exploit/LOLBins.
+  #
+  # Intensity (grounded, kept LOW): T1068 is a rare, low-footprint minority
+  # technique. MITRE T1068 documents it as attested-but-low-log-footprint
+  # (kernel/driver exploitation); Verizon DBIR 2026 finds ~83% of
+  # privilege-escalation involves NO CVE exploitation, so the exploit path
+  # T1068 models is only ~17% of privesc; Red Canary Threat Detection Report
+  # ranks it below T1059 command/scripting. So the "2-12 exec/day" multiplier
+  # (below the normal process rate of 22.4/day) is deliberately kept low: the
+  # literature supports "rare but present," not a higher rate, and we do not
+  # invent one.
+  # Duration (corrected): the earlier 0.05-1 d window was internally
+  # inconsistent — the domain models APT chains that "span weeks," and every
+  # comparable adversary here fires over multi-day dwell (lateral_movement 1-7 d
+  # fires reliably at the same prevalence_weight and a LOWER multiplier). A
+  # privilege-escalation phase recurs across the intrusion's multi-day dwell,
+  # not within a sub-day window. Aligning duration to 1-7 d (the lateral_movement
+  # dwell window) is the internally-consistent, grounded fix and makes the
+  # playbook fire reliably (~9-10 expected events at 1M edges, anomaly-rate 0.05)
+  # while staying orders of magnitude rarer than normal process activity.
+  - intent: priv_esc
+    description: >-
+      Privilege escalation: a process chain elevates integrity (low→system)
+      via exploit or LOLBin abuse (MITRE T1068). Camouflage by using signed
+      living-off-the-land binaries that resemble normal admin activity.
+    actor: process
+    stages:
+      - name: escalate
+        duration_days: !uniform { min: 1.0, max: 7.0 }   # APT dwell window; matches lateral_movement (T1021). Priv-esc recurs across dwell, not sub-day.
+        activity_multiplier: !uniform { min: 0.0895, max: 0.5367 }   # 2-12/day vs process normal 22.4/day; kept low (MITRE T1068 low-footprint; DBIR 2026 ~17% of privesc is CVE-exploitation; not in Red Canary TDR top-10)
+        event: process_exec
+        scope: !chain
+        attr_overrides:
+          - attr: image_kind
+            dist: !constant { value: 3.0 }   # categorical idx 3 -> lolbin
+          - attr: technique
+            dist: !constant { value: 0.0 }   # TA0004/T1068
+    camouflage: 0.55
+    prevalence_weight: 0.16
+    ring_size: !uniform { min: 1.0, max: 4.0 }
+    cascade_p: 0.15
+
+failures: []
+
+control:
+  prevalence: 0.015       # APT/intrusion nodes are rare (LANL/OpTC red-team base rate)
+  difficulty: 0.5
+  type_mix: []            # default: per-process prevalence weights
+  placement: !clustered_bursty { n_communities: 6, start_frac: 0.2, end_frac: 0.8 }
+  cascade: 1.0

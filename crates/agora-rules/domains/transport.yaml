@@ -1,0 +1,422 @@
+# AGORA built-in rule base — Domain 4: Transportation / Mobility.
+# Grounded in DOMAINS.md §4; provenance per CORPUS.md (SUMO/Krauss, HCM, FHWA,
+# PeMS/METR-LA, MUTCD). Anomaly source type: mostly NATURAL (FailureProcess) —
+# the deliberate non-adversarial stress test for the AdversaryProcess/
+# FailureProcess split (mustread.txt §14, risk R4). Adversarial tail is thin.
+
+meta:
+  id: transport
+  name: Transportation / Mobility
+  description: >-
+    Road network of sensors, segments and trips. Normal commute dynamics with
+    NATURAL anomalies — congestion cascades, incidents, sensor faults — and a
+    thin intentional tail (GPS spoofing / fake-trip injection).
+  schema_version: 1
+  provenance:
+    - source: SUMO docs + Krauss car-following model (safe-velocity, sigma/tau/minGap)
+      url: https://sumo.dlr.de/docs/Car-Following-Models.html
+      license_tier: A
+    - source: Highway Capacity Manual 7th ed. (LOS thresholds, ~2400 pc/h/ln capacity) — parameter values only
+      version: TRB 2022
+      license_tier: B
+    - source: FHWA Traffic Flow Theory Monograph (fundamental diagram, shockwaves)
+      url: https://ops.fhwa.dot.gov/trafficanalysistools
+      license_tier: A
+    - source: METR-LA / PEMS-BAY loop-detector graphs (Li et al., DCRNN, ICLR 2018)
+      license_tier: A
+    - source: MUTCD 11th ed. (signal warrants, timing) + Greenshields (1935) fundamental diagram
+      license_tier: A
+    - source: DOMAINS.md dossier 4
+
+entity_types:
+  # Loop detectors / fixed sensors on segments — the prime fault locus.
+  - name: sensor
+    population_weight: 0.18
+    attributes:
+      - name: kind
+        kind: !categorical { values: [loop, radar, camera, gps_probe], weights: [0.55, 0.20, 0.15, 0.10] }
+      - name: road_class
+        kind: !ordinal { tiers: [local, arterial, highway], weights: [0.45, 0.35, 0.20] }
+      - name: lanes
+        kind: !numeric { dist: !uniform { min: 1.0, max: 5.0 } }
+    state:
+      - name: cum_readings
+        init: !constant { value: 0.0 }
+      - name: health
+        init: !constant { value: 1.0 }
+
+  # Road segments — capacity-bearing edges of the physical network.
+  - name: segment
+    population_weight: 0.30
+    attributes:
+      - name: road_class
+        kind: !ordinal { tiers: [local, arterial, highway], weights: [0.50, 0.32, 0.18] }
+      - name: free_flow_speed
+        kind: !numeric { dist: !uniform { min: 13.0, max: 33.0 } }   # m/s (~47–119 km/h)
+      - name: capacity_vph
+        kind: !numeric { dist: !log_normal { mu: 6.6, sigma: 0.5 } } # ~735 veh/h median, heavy tail to highway
+    state:
+      - name: cum_traversals
+        init: !constant { value: 0.0 }
+      - name: occupancy
+        init: !constant { value: 0.0 }
+
+  # Travelling agents (vehicles) making trips between zones.
+  - name: vehicle
+    population_weight: 0.50
+    attributes:
+      - name: vtype
+        kind: !categorical { values: [car, taxi, truck, bus], weights: [0.78, 0.10, 0.08, 0.04] }
+      - name: aggressiveness
+        kind: !numeric { dist: !normal { mean: 0.5, std: 0.15 } }    # Krauss sigma analogue
+    state:
+      - name: trips
+        init: !constant { value: 0.0 }
+      - name: distance_m
+        init: !constant { value: 0.0 }
+
+  # Demand zones (origins/destinations) — gravity-model trip endpoints.
+  - name: zone
+    population_weight: 0.02
+    attributes:
+      - name: land_use
+        kind: !categorical { values: [residential, commercial, industrial, mixed], weights: [0.45, 0.25, 0.12, 0.18] }
+    state:
+      - name: cum_demand
+        init: !constant { value: 0.0 }
+
+relations:
+  # Physical road graph: segments connect in a small-world-ish lattice
+  # (grid + a few long arterials/highways = shortcuts).
+  - name: road_network
+    src: segment
+    dst: segment
+    model: !small_world { k: 4, beta: 0.12 }
+    layer: skeleton
+    mean_degree: 4.0
+  # Sensors are mounted on segments (each sensor monitors a few segments).
+  - name: monitors
+    src: sensor
+    dst: segment
+    model: !affiliation
+      popularity: !zipf { n: 200000, exponent: 0.7 }
+    layer: skeleton
+    mean_degree: 2.0
+  # Vehicle origin/destination affinity: gravity model = popularity-skewed
+  # zones (CBD/commercial attract disproportionately).
+  - name: od_affinity
+    src: vehicle
+    dst: zone
+    model: !affiliation
+      popularity: !zipf { n: 50000, exponent: 1.0 }
+    layer: skeleton
+    mean_degree: 6.0
+  # Which segments a vehicle routinely traverses (its habitual routes).
+  - name: routes
+    src: vehicle
+    dst: segment
+    model: !affiliation
+      popularity: !zipf { n: 300000, exponent: 0.9 }
+    layer: skeleton
+    mean_degree: 12.0
+
+event_types:
+  # A vehicle traversing a segment (the lifeblood "vessel" edge).
+  - name: traversal
+    src: vehicle
+    dst: segment
+    attributes:
+      - name: travel_time_s
+        kind: !numeric { dist: !log_normal { mu: 4.0, sigma: 0.6 } }   # ~55s median
+      - name: mean_speed
+        kind: !numeric { dist: !normal { mean: 18.0, std: 6.0 } }      # m/s
+    effects:
+      - !increment_src { var: trips }
+      - !add_to_dst { var: cum_traversals, from_attr: travel_time_s }
+
+  # A periodic sensor reading (flow/occupancy/speed) — the fault-prone stream.
+  - name: sensor_reading
+    src: sensor
+    dst: segment
+    attributes:
+      - name: flow_vph
+        kind: !numeric { dist: !log_normal { mu: 5.5, sigma: 0.7 } }   # veh/h
+      - name: occupancy
+        kind: !numeric { dist: !uniform { min: 0.02, max: 0.45 } }
+      - name: speed
+        kind: !numeric { dist: !normal { mean: 20.0, std: 5.0 } }
+    effects:
+      - !increment_src { var: cum_readings }
+
+  # A completed trip between zones (taxi/ride demand layer).
+  - name: trip
+    src: vehicle
+    dst: zone
+    attributes:
+      - name: distance_m
+        kind: !numeric { dist: !log_normal { mu: 8.4, sigma: 0.8 } }   # ~4.4 km median
+      - name: duration_s
+        kind: !numeric { dist: !log_normal { mu: 6.6, sigma: 0.7 } }
+      - name: passengers
+        kind: !numeric { dist: !uniform { min: 1.0, max: 4.0 } }
+    effects:
+      - !increment_src { var: trips }
+      - !add_to_src { var: distance_m, from_attr: distance_m }
+      - !add_to_dst { var: cum_demand, from_attr: distance_m }
+
+behaviors:
+  # Sensors emit at a steady cadence with mild diurnal coupling (traffic-driven
+  # for occupancy-triggered reporting); this stream is what faults corrupt.
+  # NOTE: under the edge-budget calibration (§3) rate_per_day is the RELATIVE
+  # weight of this stream, not a literal cadence. At 288 (nominal 5-min) sensor
+  # readings monopolized ~86% of all edges, collapsing the mobility graph into a
+  # sensor-housekeeping log: ~40% of vehicles and ~35% of segments never appeared
+  # in an edge, degree and repeat-edge distributions were badly distorted. The
+  # weight is set so readings are comparable to (a small multiple of) vehicle
+  # traffic — a coarse aggregate cadence (PeMS also publishes 15-min/hourly
+  # aggregates), yielding a balanced sensors+segments+trips interaction graph.
+  - name: sensor_reporting
+    actor: sensor
+    timing:
+      rate_per_day: 40.0    # aggregate reporting weight (see NOTE above)
+      diurnal: [0.4,0.3,0.3,0.3,0.4,0.6,1.1,1.7,1.9,1.5,1.3,1.3,1.4,1.4,1.4,1.5,1.7,1.9,1.7,1.3,1.0,0.8,0.6,0.5]
+      weekly: [1.05, 1.05, 1.05, 1.05, 1.1, 0.85, 0.8]
+      burst_p: 0.0
+      burst_mean_len: 0.0
+    events:
+      - event: sensor_reading
+        weight: 1.0
+        counterparty: !skeleton_neighbor { relation: monitors }
+    activity: !log_normal { mu: 0.0, sigma: 0.2 }
+
+  # Commuters: strong bimodal AM/PM peaks, weekday-heavy; traverse habitual
+  # routes (muscle edges via repeat bias).
+  - name: commuter_driving
+    actor: vehicle
+    actor_filter: [{ attr: vtype, value: car }]
+    timing:
+      rate_per_day: 6.0
+      diurnal: [0.1,0.05,0.05,0.05,0.15,0.5,1.4,2.6,2.4,1.4,0.9,0.9,1.0,0.9,0.9,1.1,1.8,2.7,2.3,1.3,0.8,0.5,0.3,0.15]
+      weekly: [1.2, 1.2, 1.2, 1.2, 1.25, 0.5, 0.35]
+      burst_p: 0.30
+      burst_mean_len: 3.0   # a trip = a burst of consecutive segment traversals
+    events:
+      - event: traversal
+        weight: 0.85
+        counterparty: !repeat_or_neighbor { relation: routes, repeat_p: 0.80 }
+      - event: trip
+        weight: 0.15
+        counterparty: !repeat_or_neighbor { relation: od_affinity, repeat_p: 0.6 }
+    activity: !log_normal { mu: 0.0, sigma: 0.5 }
+
+  # Taxis/for-hire: round-the-clock, demand clustered to popular zones.
+  - name: taxi_service
+    actor: vehicle
+    actor_filter: [{ attr: vtype, value: taxi }]
+    timing:
+      rate_per_day: 40.0
+      diurnal: [0.8,0.7,0.5,0.4,0.4,0.6,1.0,1.4,1.3,1.1,1.0,1.1,1.2,1.1,1.1,1.2,1.5,1.7,1.6,1.5,1.4,1.3,1.1,0.9]
+      weekly: [1.0, 1.0, 1.0, 1.05, 1.25, 1.3, 1.0]
+      burst_p: 0.10
+      burst_mean_len: 2.0
+    events:
+      - event: trip
+        weight: 0.7
+        counterparty: !global_popularity { entity: zone }
+      - event: traversal
+        weight: 0.3
+        counterparty: !skeleton_neighbor { relation: routes }
+    activity: !log_normal { mu: 0.2, sigma: 0.6 }
+
+  # Freight (trucks): steady inter-peak movement, less rush-bound; traverse
+  # habitual routes. Trucks are ~8% of the fleet (vtype declared above) and were
+  # previously idle — no behavior emitted for them, so they sat isolated.
+  - name: freight_movement
+    actor: vehicle
+    actor_filter: [{ attr: vtype, value: truck }]
+    timing:
+      rate_per_day: 10.0
+      diurnal: [0.5,0.4,0.4,0.5,0.7,1.0,1.3,1.4,1.3,1.2,1.2,1.2,1.2,1.2,1.2,1.3,1.3,1.2,1.0,0.9,0.8,0.7,0.6,0.5]
+      weekly: [1.15, 1.2, 1.2, 1.2, 1.15, 0.55, 0.35]
+      burst_p: 0.25
+      burst_mean_len: 4.0
+    events:
+      - event: traversal
+        weight: 0.9
+        counterparty: !repeat_or_neighbor { relation: routes, repeat_p: 0.85 }
+      - event: trip
+        weight: 0.1
+        counterparty: !repeat_or_neighbor { relation: od_affinity, repeat_p: 0.7 }
+    activity: !log_normal { mu: 0.0, sigma: 0.5 }
+
+  # Transit (buses): high-frequency fixed-route service, strongly diurnal,
+  # weekday-heavy. Buses are ~4% of the fleet and were likewise idle before.
+  - name: transit_service
+    actor: vehicle
+    actor_filter: [{ attr: vtype, value: bus }]
+    timing:
+      rate_per_day: 28.0
+      diurnal: [0.2,0.1,0.1,0.1,0.3,0.8,1.6,2.4,2.0,1.3,1.1,1.1,1.2,1.1,1.1,1.3,1.9,2.4,2.0,1.3,0.8,0.5,0.3,0.2]
+      weekly: [1.2, 1.2, 1.2, 1.2, 1.25, 0.6, 0.45]
+      burst_p: 0.2
+      burst_mean_len: 5.0
+    events:
+      - event: traversal
+        weight: 1.0
+        counterparty: !repeat_or_neighbor { relation: routes, repeat_p: 0.9 }
+    activity: !log_normal { mu: 0.0, sigma: 0.3 }
+
+constraints:
+  - name: speed_physical_range
+    check: !attr_range { event: sensor_reading, attr: speed, min: 0.0, max: 60.0 }
+    description: speed ∈ [0, v_max]; readings outside are sensor faults
+  - name: occupancy_unit_range
+    check: !attr_range { event: sensor_reading, attr: occupancy, min: 0.0, max: 1.0 }
+    description: occupancy is a fraction in [0,1]
+  - name: flow_non_negative
+    check: !attr_range { event: sensor_reading, attr: flow_vph, min: 0.0, max: 12000.0 }
+    description: flow ≤ multi-lane capacity bound; negatives/impossibles = faults
+  - name: travel_time_positive
+    check: !attr_range { event: traversal, attr: travel_time_s, min: 0.1, max: 7200.0 }
+    description: travel_time ≥ length/v_max; no teleportation
+  - name: trip_distance_range
+    check: !attr_range { event: trip, attr: distance_m, min: 1.0, max: 200000.0 }
+  - name: sensor_neighbor_corroboration
+    check: !documented { rule: "a reading not corroborated by adjacent sensors on the same segment ⇒ fault (the key discriminator, DOMAINS.md §4)" }
+  - name: fundamental_diagram_coherence
+    check: !documented { rule: "high flow with near-zero speed violates the speed-flow-density fundamental diagram (Greenshields) ⇒ congestion or fault" }
+
+# Thin adversarial tail (proves the schema's AdversaryProcess path still works
+# in a NATURAL-dominated domain): GPS spoofing + fake-trip injection.
+adversaries:
+  - intent: gps_spoofing
+    description: >-
+      Coordinated spoofed probe reports placing vehicles on segments they are
+      not on (teleport-like speed/occupancy); camouflage = mimic an organic
+      surge. Thin tail by design.
+    actor: vehicle
+    stages:
+      - name: spoofed_traversals
+        duration_days: !uniform { min: 0.5, max: 3.0 }
+        activity_multiplier: !uniform { min: 1.1796, max: 4.7183 }   # 20.0-80.0/day vs normal vehicle 16.96/day
+        event: traversal
+        scope: !victims
+          count: !uniform { min: 5.0, max: 20.0 }
+        attr_overrides:
+          - attr: mean_speed
+            dist: !uniform { min: 0.0, max: 3.0 }       # implausibly slow on a clear segment
+          - attr: travel_time_s
+            dist: !uniform { min: 1.0, max: 5.0 }       # incompatible with the speed: teleport
+    camouflage: 0.3
+    prevalence_weight: 0.5
+    ring_size: !uniform { min: 2.0, max: 8.0 }
+    cascade_p: 0.05
+
+  - intent: fake_trip_injection
+    description: >-
+      Fabricated trips (incentive fraud / demand manipulation) clustered to a
+      few zones; camouflage = spread over time to mimic real demand.
+    actor: vehicle
+    stages:
+      - name: phantom_trips
+        duration_days: !uniform { min: 1.0, max: 7.0 }
+        activity_multiplier: !uniform { min: 0.5898, max: 2.3592 }   # 10.0-40.0/day vs normal vehicle 16.96/day
+        event: trip
+        scope: !collector
+        attr_overrides:
+          - attr: distance_m
+            dist: !log_normal { mu: 7.0, sigma: 0.3 }
+          - attr: passengers
+            dist: !constant { value: 1.0 }
+    camouflage: 0.4
+    prevalence_weight: 0.5
+    ring_size: !uniform { min: 3.0, max: 12.0 }
+    cascade_p: 0.0
+
+# NATURAL anomalies dominate (DOMAINS.md §4): faults + congestion + incidents.
+failures:
+  # Stuck-at sensor fault: reading frozen at a constant value (classic loop
+  # detector failure). Not corroborated by neighbors = the discriminator.
+  - intent: sensor_stuck
+    description: Loop/radar stuck-at fault — flow frozen at a constant.
+    actor: sensor
+    mode: !stuck_attr { event: sensor_reading, attr: flow_vph, value: 0.0 }
+    prevalence_weight: 3.0
+    rate_per_year: 6.0
+    duration_days: !uniform { min: 0.2, max: 4.0 }
+    cascade_p: 0.0
+
+  # Sensor drift: speed reading drifts off calibration over the span.
+  - intent: sensor_drift
+    description: Slow calibration drift in reported speed (m/s per day).
+    actor: sensor
+    mode: !drift_attr { event: sensor_reading, attr: speed, drift_per_day: 1.5 }
+    prevalence_weight: 2.0
+    rate_per_year: 3.0
+    duration_days: !uniform { min: 5.0, max: 30.0 }
+    cascade_p: 0.0
+
+  # Sensor dropout: the sensor goes silent (no readings) for the span.
+  - intent: sensor_dropout
+    description: Communications dropout — the sensor stops reporting.
+    actor: sensor
+    mode: !silence
+    prevalence_weight: 2.0
+    rate_per_year: 4.0
+    duration_days: !uniform { min: 0.1, max: 2.0 }
+    cascade_p: 0.0
+
+  # Impossible values: reading replaced by out-of-range noise (negative flow,
+  # >100% occupancy) — trips the physical-range Φ constraints.
+  - intent: sensor_impossible
+    description: Corrupted readings outside physical range (occupancy noise).
+    actor: sensor
+    mode: !noise_attr
+      event: sensor_reading
+      attr: occupancy
+      dist: !uniform { min: 1.2, max: 3.0 }
+    prevalence_weight: 1.5
+    rate_per_year: 2.0
+    duration_days: !uniform { min: 0.1, max: 1.0 }
+    cascade_p: 0.0
+
+  # Congestion cascade: a segment's vehicles slow down and the slowdown
+  # PROPAGATES to skeleton-neighbor segments (backward-moving shockwave).
+  # Modeled as a RateShift surge in traversals (queueing) that cascades.
+  - intent: congestion_cascade
+    description: >-
+      Emergent congestion — density crosses critical, a backward-moving
+      shockwave propagates to adjacent segments (phantom jam, no incident).
+    actor: vehicle
+    mode: !rate_shift { factor: 2.2 }
+    prevalence_weight: 4.0
+    rate_per_year: 50.0
+    duration_days: !uniform { min: 0.02, max: 0.15 }   # ~30 min – 3.5 h
+    cascade_p: 0.45
+
+  # Incident: abrupt local capacity drop (crash) — a sharp slowdown with
+  # spillback; rarer than phantom jams, shorter cascade.
+  - intent: incident
+    description: Accident/incident — abrupt capacity drop and queue spillback.
+    actor: vehicle
+    mode: !rate_shift { factor: 3.0 }
+    prevalence_weight: 2.0
+    rate_per_year: 12.0
+    duration_days: !uniform { min: 0.03, max: 0.25 }
+    cascade_p: 0.25
+
+control:
+  prevalence: 0.04          # higher than fraud domains: faults/congestion are common, but per-edge anomaly share stays modest
+  difficulty: 0.5
+  # NATURAL anomalies dominate; adversarial tail is deliberately small.
+  type_mix:
+    - { intent: congestion_cascade, weight: 0.34 }
+    - { intent: sensor_stuck, weight: 0.16 }
+    - { intent: sensor_dropout, weight: 0.12 }
+    - { intent: sensor_drift, weight: 0.10 }
+    - { intent: incident, weight: 0.10 }
+    - { intent: sensor_impossible, weight: 0.08 }
+    - { intent: gps_spoofing, weight: 0.05 }
+    - { intent: fake_trip_injection, weight: 0.05 }
+  placement: !clustered_bursty { n_communities: 12, start_frac: 0.0, end_frac: 1.0 }
+  cascade: 1.0

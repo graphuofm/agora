@@ -1,0 +1,8 @@
+/target
+/realdata
+/corpus
+*.parquet
+__pycache__/
+*.aux
+*.log
+*.bbl

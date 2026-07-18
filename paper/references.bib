@@ -1,0 +1,1103 @@
+% =====================================================================
+%  references.bib  --  AGORA -> SIGMOD
+%
+%  Every entry below was verified (2026-06) against DBLP and the
+%  original publisher (ACM DL, IEEE Xplore, Springer, JMLR, PMLR,
+%  APS, Science/Nature, ACL Anthology, NeurIPS/OpenReview, arXiv).
+%  Volume / number / pages / DOIs and full author lists are included
+%  where the publisher exposes them. Residual uncertainties are noted
+%  inline with "% NOTE".
+%
+%  Organized to mirror BACKGROUND.md sections.
+% =====================================================================
+
+
+% ============ §1  Temporal graphs & temporal GNNs ====================
+
+@article{kazemi2020dynamicsurvey,
+  author  = {Seyed Mehran Kazemi and Rishab Goel and Kshitij Jain and Ivan Kobyzev and Akshay Sethi and Peter Forsyth and Pascal Poupart},
+  title   = {Representation Learning for Dynamic Graphs: A Survey},
+  journal = {Journal of Machine Learning Research},
+  volume  = {21}, number = {70}, pages = {1--73}, year = {2020}
+}
+
+@inproceedings{kumar2019jodie,
+  author    = {Srijan Kumar and Xiang Zhang and Jure Leskovec},
+  title     = {Predicting Dynamic Embedding Trajectory in Temporal Interaction Networks},
+  booktitle = {Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {1269--1278}, year = {2019}, doi = {10.1145/3292500.3330895}
+}
+
+@inproceedings{trivedi2019dyrep,
+  author    = {Rakshit S. Trivedi and Mehrdad Farajtabar and Prasenjeet Biswal and Hongyuan Zha},
+  title     = {{DyRep}: Learning Representations over Dynamic Graphs},
+  booktitle = {7th International Conference on Learning Representations (ICLR)},
+  year      = {2019}
+}
+
+@inproceedings{xu2020tgat,
+  author    = {Da Xu and Chuanwei Ruan and Evren Korpeoglu and Sushant Kumar and Kannan Achan},
+  title     = {Inductive Representation Learning on Temporal Graphs},
+  booktitle = {8th International Conference on Learning Representations (ICLR)},
+  year      = {2020}
+}
+
+@inproceedings{rossi2020tgn,
+  author    = {Emanuele Rossi and Ben Chamberlain and Fabrizio Frasca and Davide Eynard and Federico Monti and Michael M. Bronstein},
+  title     = {Temporal Graph Networks for Deep Learning on Dynamic Graphs},
+  booktitle = {ICML 2020 Workshop on Graph Representation Learning and Beyond (GRL+)},
+  year      = {2020}, note = {arXiv:2006.10637}
+}
+
+@inproceedings{wang2021caw,
+  author    = {Yanbang Wang and Yen-Yu Chang and Yunyu Liu and Jure Leskovec and Pan Li},
+  title     = {Inductive Representation Learning in Temporal Networks via Causal Anonymous Walks},
+  booktitle = {9th International Conference on Learning Representations (ICLR)},
+  year      = {2021}
+}
+
+@inproceedings{cong2023graphmixer,
+  author    = {Weilin Cong and Si Zhang and Jian Kang and Baichuan Yuan and Hao Wu and Xin Zhou and Hanghang Tong and Mehrdad Mahdavi},
+  title     = {Do We Really Need Complicated Model Architectures for Temporal Networks?},
+  booktitle = {11th International Conference on Learning Representations (ICLR)},
+  year      = {2023}
+}
+
+@inproceedings{yu2023dygformer,
+  author    = {Le Yu and Leilei Sun and Bowen Du and Weifeng Lv},
+  title     = {Towards Better Dynamic Graph Learning: New Architecture and Unified Library},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS)},
+  year      = {2023}, note = {introduces DyGFormer and the DyGLib library}
+}
+
+@inproceedings{poursafaei2022edgebank,
+  author    = {Farimah Poursafaei and Shenyang Huang and Kellin Pelrine and Reihaneh Rabbany},
+  title     = {Towards Better Evaluation for Dynamic Link Prediction},
+  booktitle = {Advances in Neural Information Processing Systems 35 (NeurIPS), Datasets and Benchmarks Track},
+  year      = {2022}
+}
+
+
+% ============ §2  Anomaly: definitions, surveys, methods =============
+
+@book{hawkins1980identification,
+  author    = {Douglas M. Hawkins},
+  title     = {Identification of Outliers},
+  series    = {Monographs on Statistics and Applied Probability},
+  publisher = {Chapman and Hall}, address = {London}, year = {1980}
+}
+
+@article{chandola2009anomaly,
+  author  = {Varun Chandola and Arindam Banerjee and Vipin Kumar},
+  title   = {Anomaly Detection: A Survey},
+  journal = {ACM Computing Surveys},
+  volume  = {41}, number = {3}, pages = {15:1--15:58}, year = {2009},
+  doi     = {10.1145/1541880.1541882}
+}
+
+@article{akoglu2015graph,
+  author  = {Leman Akoglu and Hanghang Tong and Danai Koutra},
+  title   = {Graph Based Anomaly Detection and Description: A Survey},
+  journal = {Data Mining and Knowledge Discovery},
+  volume  = {29}, number = {3}, pages = {626--688}, year = {2015},
+  doi     = {10.1007/s10618-014-0365-y}
+}
+
+@article{ranshous2015anomaly,
+  author  = {Stephen Ranshous and Shitian Shen and Danai Koutra and Steve Harenberg and Christos Faloutsos and Nagiza F. Samatova},
+  title   = {Anomaly Detection in Dynamic Networks: A Survey},
+  journal = {WIREs Computational Statistics},
+  volume  = {7}, number = {3}, pages = {223--247}, year = {2015},
+  doi     = {10.1002/wics.1347}
+}
+
+@article{ma2023comprehensive,
+  author  = {Xiaoxiao Ma and Jia Wu and Shan Xue and Jian Yang and Chuan Zhou and Quan Z. Sheng and Hui Xiong and Leman Akoglu},
+  title   = {A Comprehensive Survey on Graph Anomaly Detection with Deep Learning},
+  journal = {IEEE Transactions on Knowledge and Data Engineering},
+  volume  = {35}, number = {12}, pages = {12012--12038}, year = {2023},
+  doi     = {10.1109/TKDE.2021.3118815}
+}
+
+@article{ekle2024dynamicsurvey,
+  author    = {Ocheme Anthony Ekle and William Eberle},
+  title     = {Anomaly Detection in Dynamic Graphs: A Comprehensive Survey},
+  journal   = {ACM Transactions on Knowledge Discovery from Data},
+  volume    = {18}, number = {8}, articleno = {192}, pages = {192:1--192:44},
+  year      = {2024}, doi = {10.1145/3669906}
+}
+
+@inproceedings{dou2020caregnn,
+  author    = {Yingtong Dou and Zhiwei Liu and Li Sun and Yutong Deng and Hao Peng and Philip S. Yu},
+  title     = {Enhancing Graph Neural Network-based Fraud Detectors against Camouflaged Fraudsters},
+  booktitle = {Proceedings of the 29th ACM International Conference on Information and Knowledge Management (CIKM)},
+  pages     = {315--324}, year = {2020}, doi = {10.1145/3340531.3411903}
+}
+
+@inproceedings{yu2018netwalk,
+  author    = {Wenchao Yu and Wei Cheng and Charu C. Aggarwal and Kai Zhang and Haifeng Chen and Wei Wang},
+  title     = {{NetWalk}: A Flexible Deep Embedding Approach for Anomaly Detection in Dynamic Networks},
+  booktitle = {Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {2672--2681}, year = {2018}, doi = {10.1145/3219819.3220024}
+}
+
+@inproceedings{zheng2019addgraph,
+  author    = {Li Zheng and Zhenpeng Li and Jian Li and Zhao Li and Jun Gao},
+  title     = {{AddGraph}: Anomaly Detection in Dynamic Graph Using Attention-based Temporal GCN},
+  booktitle = {Proceedings of the 28th International Joint Conference on Artificial Intelligence (IJCAI)},
+  pages     = {4419--4425}, year = {2019}, doi = {10.24963/ijcai.2019/614}
+}
+
+@inproceedings{cai2021strgnn,
+  author    = {Lei Cai and Zhengzhang Chen and Chen Luo and Jiaping Gui and Jingchao Ni and Ding Li and Haifeng Chen},
+  title     = {Structural Temporal Graph Neural Networks for Anomaly Detection in Dynamic Graphs},
+  booktitle = {Proceedings of the 30th ACM International Conference on Information and Knowledge Management (CIKM)},
+  pages     = {3747--3756}, year = {2021}, doi = {10.1145/3459637.3481955}
+}
+
+@article{liu2023taddy,
+  author  = {Yixin Liu and Shirui Pan and Yu Guang Wang and Fei Xiong and Liang Wang and Qingfeng Chen and Vincent C. S. Lee},
+  title   = {Anomaly Detection in Dynamic Graphs via Transformer},
+  journal = {IEEE Transactions on Knowledge and Data Engineering},
+  volume  = {35}, number = {12}, pages = {12081--12094}, year = {2023},
+  doi     = {10.1109/TKDE.2021.3124061}
+}
+
+@inproceedings{tian2023sad,
+  author    = {Sheng Tian and Jihai Dong and Jintang Li and Wenlong Zhao and Xiaolong Xu and Baokun Wang and Bowen Song and Changhua Meng and Tianyi Zhang and Liang Chen},
+  title     = {{SAD}: Semi-Supervised Anomaly Detection on Dynamic Graphs},
+  booktitle = {Proceedings of the 32nd International Joint Conference on Artificial Intelligence (IJCAI)},
+  pages     = {2306--2314}, year = {2023}, doi = {10.24963/ijcai.2023/256}
+}
+
+@inproceedings{lee2024slade,
+  author    = {Jongha Lee and Sunwoo Kim and Kijung Shin},
+  title     = {{SLADE}: Detecting Dynamic Anomalies in Edge Streams without Labels via Self-Supervised Learning},
+  booktitle = {Proceedings of the 30th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {1640--1651}, year = {2024}, doi = {10.1145/3637528.3671939}
+}
+
+@inproceedings{bhatia2020midas,
+  author    = {Siddharth Bhatia and Bryan Hooi and Minji Yoon and Kijung Shin and Christos Faloutsos},
+  title     = {{MIDAS}: Microcluster-Based Detector of Anomalies in Edge Streams},
+  booktitle = {Proceedings of the 34th AAAI Conference on Artificial Intelligence (AAAI)},
+  volume    = {34}, number = {4}, pages = {3242--3249}, year = {2020},
+  doi       = {10.1609/aaai.v34i04.5724}
+}
+
+@inproceedings{yoon2019anomrank,
+  author    = {Minji Yoon and Bryan Hooi and Kijung Shin and Christos Faloutsos},
+  title     = {Fast and Accurate Anomaly Detection in Dynamic Graphs with a Two-Pronged Approach},
+  booktitle = {Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {647--657}, year = {2019}, doi = {10.1145/3292500.3330946}
+}
+
+@inproceedings{davis2006prroc,
+  author    = {Jesse Davis and Mark Goadrich},
+  title     = {The Relationship Between Precision-Recall and ROC Curves},
+  booktitle = {Proceedings of the 23rd International Conference on Machine Learning (ICML)},
+  pages     = {233--240}, year = {2006}, doi = {10.1145/1143844.1143874}
+}
+
+
+% ============ §3.1  Classic random-graph / generative models ========
+
+@article{erdos1960evolution,
+  author  = {Paul Erd{\H{o}}s and Alfr{\'e}d R{\'e}nyi},
+  title   = {On the Evolution of Random Graphs},
+  journal = {Publications of the Mathematical Institute of the Hungarian Academy of Sciences},
+  volume  = {5}, pages = {17--61}, year = {1960}
+}
+
+@article{barabasi1999emergence,
+  author  = {Albert-L{\'a}szl{\'o} Barab{\'a}si and R{\'e}ka Albert},
+  title   = {Emergence of Scaling in Random Networks},
+  journal = {Science}, volume = {286}, number = {5439}, pages = {509--512},
+  year    = {1999}, doi = {10.1126/science.286.5439.509}
+}
+
+@article{albert2002statistical,
+  author  = {R{\'e}ka Albert and Albert-L{\'a}szl{\'o} Barab{\'a}si},
+  title   = {Statistical Mechanics of Complex Networks},
+  journal = {Reviews of Modern Physics}, volume = {74}, number = {1},
+  pages   = {47--97}, year = {2002}, doi = {10.1103/RevModPhys.74.47}
+}
+
+@article{watts1998smallworld,
+  author  = {Duncan J. Watts and Steven H. Strogatz},
+  title   = {Collective Dynamics of `Small-World' Networks},
+  journal = {Nature}, volume = {393}, number = {6684}, pages = {440--442},
+  year    = {1998}, doi = {10.1038/30918}
+}
+
+@article{price1976cumulative,
+  author  = {Derek de Solla Price},
+  title   = {A General Theory of Bibliometric and Other Cumulative Advantage Processes},
+  journal = {Journal of the American Society for Information Science},
+  volume  = {27}, number = {5}, pages = {292--306}, year = {1976},
+  doi     = {10.1002/asi.4630270505}
+}
+
+@inproceedings{kumar2000copying,
+  author    = {Ravi Kumar and Prabhakar Raghavan and Sridhar Rajagopalan and D. Sivakumar and Andrew Tomkins and Eli Upfal},
+  title     = {Stochastic Models for the Web Graph},
+  booktitle = {Proceedings of the 41st Annual IEEE Symposium on Foundations of Computer Science (FOCS)},
+  pages     = {57--65}, year = {2000}, doi = {10.1109/SFCS.2000.892065}
+}
+
+@article{vazquez2003duplication,
+  author  = {Alexei V{\'a}zquez},
+  title   = {Growing Network with Local Rules: Preferential Attachment, Clustering Hierarchy, and Degree Correlations},
+  journal = {Physical Review E}, volume = {67}, number = {5}, pages = {056104},
+  year    = {2003}, doi = {10.1103/PhysRevE.67.056104}
+}
+
+@article{chung2003duplication,
+  author  = {Fan Chung and Linyuan Lu and T. Gregory Dewey and David J. Galas},
+  title   = {Duplication Models for Biological Networks},
+  journal = {Journal of Computational Biology}, volume = {10}, number = {5},
+  pages   = {677--687}, year = {2003}, doi = {10.1089/106652703322539024}
+}
+
+@article{molloy1995configuration,
+  author  = {Michael Molloy and Bruce Reed},
+  title   = {A Critical Point for Random Graphs with a Given Degree Sequence},
+  journal = {Random Structures \& Algorithms}, volume = {6}, number = {2-3},
+  pages   = {161--180}, year = {1995}, doi = {10.1002/rsa.3240060204}
+}
+
+@article{newman2001arbitrary,
+  author  = {M. E. J. Newman and S. H. Strogatz and D. J. Watts},
+  title   = {Random Graphs with Arbitrary Degree Distributions and Their Applications},
+  journal = {Physical Review E}, volume = {64}, number = {2}, pages = {026118},
+  year    = {2001}, doi = {10.1103/PhysRevE.64.026118}
+}
+
+@inproceedings{aiello2000massive,
+  author    = {William Aiello and Fan Chung and Linyuan Lu},
+  title     = {A Random Graph Model for Massive Graphs},
+  booktitle = {Proceedings of the 32nd Annual ACM Symposium on Theory of Computing (STOC)},
+  pages     = {171--180}, year = {2000}, doi = {10.1145/335305.335326}
+}
+
+@inproceedings{chakrabarti2004rmat,
+  author    = {Deepayan Chakrabarti and Yiping Zhan and Christos Faloutsos},
+  title     = {R-MAT: A Recursive Model for Graph Mining},
+  booktitle = {Proceedings of the Fourth SIAM International Conference on Data Mining (SDM)},
+  pages     = {442--446}, year = {2004}, publisher = {SIAM},
+  doi       = {10.1137/1.9781611972740.43}
+}
+
+@article{leskovec2010kronecker,
+  author  = {Jure Leskovec and Deepayan Chakrabarti and Jon Kleinberg and Christos Faloutsos and Zoubin Ghahramani},
+  title   = {Kronecker Graphs: An Approach to Modeling Networks},
+  journal = {Journal of Machine Learning Research},
+  volume  = {11}, pages = {985--1042}, year = {2010}
+}
+
+@article{seshadhri2013indepth,
+  author    = {C. Seshadhri and Ali Pinar and Tamara G. Kolda},
+  title     = {An In-Depth Analysis of Stochastic Kronecker Graphs},
+  journal   = {Journal of the ACM}, volume = {60}, number = {2}, articleno = {13},
+  year      = {2013}, doi = {10.1145/2450142.2450149}
+}
+
+@inproceedings{leskovec2005forestfire,
+  author    = {Jure Leskovec and Jon Kleinberg and Christos Faloutsos},
+  title     = {Graphs over Time: Densification Laws, Shrinking Diameters and Possible Explanations},
+  booktitle = {Proceedings of the 11th ACM SIGKDD International Conference on Knowledge Discovery in Data Mining (KDD)},
+  pages     = {177--187}, year = {2005}, doi = {10.1145/1081870.1081893}
+}
+
+@article{leskovec2007graphevolution,
+  author    = {Jure Leskovec and Jon Kleinberg and Christos Faloutsos},
+  title     = {Graph Evolution: Densification and Shrinking Diameters},
+  journal   = {ACM Transactions on Knowledge Discovery from Data},
+  volume    = {1}, number = {1}, articleno = {2}, year = {2007},
+  doi       = {10.1145/1217299.1217301}
+}
+
+@article{holland1983sbm,
+  author  = {Paul W. Holland and Kathryn Blackmond Laskey and Samuel Leinhardt},
+  title   = {Stochastic Blockmodels: First Steps},
+  journal = {Social Networks}, volume = {5}, number = {2}, pages = {109--137},
+  year    = {1983}, doi = {10.1016/0378-8733(83)90021-7}
+}
+
+@article{karrer2011dcsbm,
+  author  = {Brian Karrer and M. E. J. Newman},
+  title   = {Stochastic Blockmodels and Community Structure in Networks},
+  journal = {Physical Review E}, volume = {83}, number = {1}, pages = {016107},
+  year    = {2011}, doi = {10.1103/PhysRevE.83.016107}
+}
+
+@article{lancichinetti2008lfr,
+  author  = {Andrea Lancichinetti and Santo Fortunato and Filippo Radicchi},
+  title   = {Benchmark Graphs for Testing Community Detection Algorithms},
+  journal = {Physical Review E}, volume = {78}, number = {4}, pages = {046110},
+  year    = {2008}, doi = {10.1103/PhysRevE.78.046110}
+}
+
+@book{penrose2003rgg,
+  author    = {Mathew Penrose},
+  title     = {Random Geometric Graphs},
+  series    = {Oxford Studies in Probability}, volume = {5},
+  publisher = {Oxford University Press}, year = {2003}, isbn = {9780198506263}
+}
+
+@article{gilbert1961randomplane,
+  author  = {Edgar N. Gilbert},
+  title   = {Random Plane Networks},
+  journal = {Journal of the Society for Industrial and Applied Mathematics},
+  volume  = {9}, number = {4}, pages = {533--543}, year = {1961},
+  doi     = {10.1137/0109045}
+}
+
+@article{seshadhri2012bter,
+  author  = {C. Seshadhri and Tamara G. Kolda and Ali Pinar},
+  title   = {Community Structure and Scale-Free Collections of {Erd{\H{o}}s}--{R{\'e}nyi} Graphs},
+  journal = {Physical Review E}, volume = {85}, number = {5}, pages = {056109},
+  year    = {2012}, doi = {10.1103/PhysRevE.85.056109}
+}
+
+@article{kolda2014bter,
+  author  = {Tamara G. Kolda and Ali Pinar and Todd Plantenga and C. Seshadhri},
+  title   = {A Scalable Generative Graph Model with Community Structure},
+  journal = {SIAM Journal on Scientific Computing}, volume = {36}, number = {5},
+  pages   = {C424--C452}, year = {2014}, doi = {10.1137/130914218}
+}
+
+
+% ============ §3.2  Scalable generators =============================
+
+@inproceedings{park2017trilliong,
+  author    = {Himchan Park and Min-Soo Kim},
+  title     = {TrillionG: A Trillion-Scale Synthetic Graph Generator using a Recursive Vector Model},
+  booktitle = {Proceedings of the 2017 ACM SIGMOD International Conference on Management of Data},
+  pages     = {913--928}, year = {2017}, doi = {10.1145/3035918.3064014}
+}
+
+@inproceedings{pham2012s3g2,
+  author    = {Minh-Duc Pham and Peter A. Boncz and Orri Erling},
+  title     = {S3G2: A Scalable Structure-Correlated Social Graph Generator},
+  booktitle = {Selected Topics in Performance Evaluation and Benchmarking (TPCTC)},
+  series    = {Lecture Notes in Computer Science}, volume = {7755},
+  pages     = {156--172}, year = {2012}, publisher = {Springer},
+  doi       = {10.1007/978-3-642-36727-4\_11}
+}
+
+@article{bagan2017gmark,
+  author  = {Guillaume Bagan and Angela Bonifati and Radu Ciucanu and George H. L. Fletcher and Aur{\'e}lien Lemay and Nicky Advokaat},
+  title   = {gMark: Schema-Driven Generation of Graphs and Queries},
+  journal = {IEEE Transactions on Knowledge and Data Engineering},
+  volume  = {29}, number = {4}, pages = {856--869}, year = {2017},
+  doi     = {10.1109/TKDE.2016.2633993}
+}
+
+
+% ============ §3.3  Deep generative graph models ====================
+
+@inproceedings{you2018graphrnn,
+  author    = {Jiaxuan You and Rex Ying and Xiang Ren and William L. Hamilton and Jure Leskovec},
+  title     = {GraphRNN: Generating Realistic Graphs with Deep Auto-Regressive Models},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research}, volume = {80},
+  pages     = {5708--5717}, year = {2018}, publisher = {PMLR}
+}
+
+@inproceedings{simonovsky2018graphvae,
+  author    = {Martin Simonovsky and Nikos Komodakis},
+  title     = {GraphVAE: Towards Generation of Small Graphs Using Variational Autoencoders},
+  booktitle = {Artificial Neural Networks and Machine Learning (ICANN), Part I},
+  series    = {Lecture Notes in Computer Science}, volume = {11139},
+  pages     = {412--422}, year = {2018}, publisher = {Springer},
+  doi       = {10.1007/978-3-030-01418-6\_41}
+}
+
+@inproceedings{bojchevski2018netgan,
+  author    = {Aleksandar Bojchevski and Oleksandr Shchur and Daniel Z{\"u}gner and Stephan G{\"u}nnemann},
+  title     = {{NetGAN}: Generating Graphs via Random Walks},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research}, volume = {80},
+  pages     = {610--619}, year = {2018}, publisher = {PMLR}
+}
+
+@inproceedings{liao2019gran,
+  author    = {Renjie Liao and Yujia Li and Yang Song and Shenlong Wang and William L. Hamilton and David Duvenaud and Raquel Urtasun and Richard S. Zemel},
+  title     = {Efficient Graph Generation with Graph Recurrent Attention Networks},
+  booktitle = {Advances in Neural Information Processing Systems 32 (NeurIPS)},
+  year      = {2019}
+}
+
+@inproceedings{vignac2023digress,
+  author    = {Clement Vignac and Igor Krawczuk and Antoine Siraudin and Bohan Wang and Volkan Cevher and Pascal Frossard},
+  title     = {{DiGress}: Discrete Denoising Diffusion for Graph Generation},
+  booktitle = {The Eleventh International Conference on Learning Representations (ICLR)},
+  year      = {2023}
+}
+
+@inproceedings{jo2022gdss,
+  author    = {Jaehyeong Jo and Seul Lee and Sung Ju Hwang},
+  title     = {Score-based Generative Modeling of Graphs via the System of Stochastic Differential Equations},
+  booktitle = {Proceedings of the 39th International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research}, volume = {162},
+  pages     = {10362--10383}, year = {2022}, publisher = {PMLR}
+}
+
+
+% ============ §4  Graph properties & fidelity metrics ===============
+
+@article{clauset2009powerlaw,
+  author  = {Aaron Clauset and Cosma Rohilla Shalizi and M. E. J. Newman},
+  title   = {Power-Law Distributions in Empirical Data},
+  journal = {SIAM Review}, volume = {51}, number = {4}, pages = {661--703},
+  year    = {2009}, doi = {10.1137/070710111}
+}
+
+@article{broido2019scalefree,
+  author  = {Anna D. Broido and Aaron Clauset},
+  title   = {Scale-Free Networks are Rare},
+  journal = {Nature Communications}, volume = {10}, number = {1}, pages = {1017},
+  year    = {2019}, doi = {10.1038/s41467-019-08746-5}
+}
+
+@article{newman2004modularity,
+  author  = {M. E. J. Newman and M. Girvan},
+  title   = {Finding and Evaluating Community Structure in Networks},
+  journal = {Physical Review E}, volume = {69}, number = {2}, pages = {026113},
+  year    = {2004}, doi = {10.1103/PhysRevE.69.026113}
+}
+
+@article{girvan2002community,
+  author  = {Michelle Girvan and M. E. J. Newman},
+  title   = {Community Structure in Social and Biological Networks},
+  journal = {Proceedings of the National Academy of Sciences},
+  volume  = {99}, number = {12}, pages = {7821--7826}, year = {2002},
+  doi     = {10.1073/pnas.122653799}
+}
+
+@inproceedings{palmer2002anf,
+  author    = {Christopher R. Palmer and Phillip B. Gibbons and Christos Faloutsos},
+  title     = {{ANF}: A Fast and Scalable Tool for Data Mining in Massive Graphs},
+  booktitle = {Proceedings of the 8th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {81--90}, year = {2002}, doi = {10.1145/775047.775059}
+}
+
+@article{newman2002assortative,
+  author  = {M. E. J. Newman},
+  title   = {Assortative Mixing in Networks},
+  journal = {Physical Review Letters}, volume = {89}, number = {20}, pages = {208701},
+  year    = {2002}, doi = {10.1103/PhysRevLett.89.208701}
+}
+
+@article{gretton2012mmd,
+  author  = {Arthur Gretton and Karsten M. Borgwardt and Malte J. Rasch and Bernhard Sch{\"o}lkopf and Alexander J. Smola},
+  title   = {A Kernel Two-Sample Test},
+  journal = {Journal of Machine Learning Research}, volume = {13}, pages = {723--773},
+  year    = {2012}
+}
+
+@inproceedings{obray2022evalmetrics,
+  author    = {Leslie O'Bray and Max Horn and Bastian Rieck and Karsten M. Borgwardt},
+  title     = {Evaluation Metrics for Graph Generative Models: Problems, Pitfalls, and Practical Solutions},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2022}
+}
+
+
+% ============ §5  Simulation foundations ============================
+
+@article{bonabeau2002abm,
+  author  = {Eric Bonabeau},
+  title   = {Agent-Based Modeling: Methods and Techniques for Simulating Human Systems},
+  journal = {Proceedings of the National Academy of Sciences},
+  volume  = {99}, number = {suppl. 3}, pages = {7280--7287}, year = {2002},
+  doi     = {10.1073/pnas.082080899}
+}
+
+@article{macal2010abm,
+  author  = {Charles M. Macal and Michael J. North},
+  title   = {Tutorial on Agent-Based Modelling and Simulation},
+  journal = {Journal of Simulation}, volume = {4}, number = {3}, pages = {151--162},
+  year    = {2010}, doi = {10.1057/jos.2010.3}
+}
+
+@book{epstein1996growing,
+  author    = {Joshua M. Epstein and Robert Axtell},
+  title     = {Growing Artificial Societies: Social Science from the Bottom Up},
+  publisher = {Brookings Institution Press and MIT Press}, year = {1996},
+  isbn      = {0262550253}
+}
+
+@book{banks2010des,
+  author    = {Jerry Banks and John S. Carson and Barry L. Nelson and David M. Nicol},
+  title     = {Discrete-Event System Simulation},
+  edition   = {5}, publisher = {Pearson Prentice Hall}, year = {2010},
+  isbn      = {9780136062127}
+}
+
+@book{law2000simulation,
+  author    = {Averill M. Law and W. David Kelton},
+  title     = {Simulation Modeling and Analysis},
+  edition   = {3}, publisher = {McGraw-Hill}, year = {2000}, isbn = {0070592926}
+}
+
+@article{fujimoto1990pdes,
+  author  = {Richard M. Fujimoto},
+  title   = {Parallel Discrete Event Simulation},
+  journal = {Communications of the ACM}, volume = {33}, number = {10},
+  pages   = {30--53}, year = {1990}, doi = {10.1145/84537.84545}
+}
+
+@article{chandy1979distributed,
+  author  = {K. Mani Chandy and Jayadev Misra},
+  title   = {Distributed Simulation: A Case Study in Design and Verification of Distributed Programs},
+  journal = {IEEE Transactions on Software Engineering}, volume = {SE-5}, number = {5},
+  pages   = {440--452}, year = {1979}, doi = {10.1109/TSE.1979.230182}
+}
+
+@techreport{bryant1977simulation,
+  author      = {Randal E. Bryant},
+  title       = {Simulation of Packet Communication Architecture Computer Systems},
+  institution = {Massachusetts Institute of Technology, Laboratory for Computer Science},
+  number      = {MIT-LCS-TR-188}, address = {Cambridge, MA}, year = {1977}
+}
+
+@article{jefferson1985virtualtime,
+  author  = {David R. Jefferson},
+  title   = {Virtual Time},
+  journal = {ACM Transactions on Programming Languages and Systems},
+  volume  = {7}, number = {3}, pages = {404--425}, year = {1985},
+  doi     = {10.1145/3916.3988}
+}
+
+@article{carothers2002ross,
+  author  = {Christopher D. Carothers and David Bauer and Shawn Pearce},
+  title   = {{ROSS}: A High-Performance, Low-Memory, Modular Time Warp System},
+  journal = {Journal of Parallel and Distributed Computing}, volume = {62}, number = {11},
+  pages   = {1648--1669}, year = {2002}, doi = {10.1016/S0743-7315(02)00004-7}
+}
+
+@inproceedings{salmon2011random123,
+  author    = {John K. Salmon and Mark A. Moraes and Ron O. Dror and David E. Shaw},
+  title     = {Parallel Random Numbers: As Easy as 1, 2, 3},
+  booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC)},
+  articleno = {16}, pages = {16:1--16:12}, year = {2011}, publisher = {ACM},
+  doi       = {10.1145/2063384.2063405}
+}
+
+@techreport{oneill2014pcg,
+  author      = {Melissa E. O'Neill},
+  title       = {{PCG}: A Family of Simple Fast Space-Efficient Statistically Good Algorithms for Random Number Generation},
+  institution = {Harvey Mudd College, Computer Science Department},
+  number      = {HMC-CS-2014-0905}, address = {Claremont, CA}, year = {2014},
+  note        = {Submitted to ACM TOMS; withdrawn during review, never formally published}
+}
+
+@inproceedings{steele2014splitmix,
+  author    = {Guy L. Steele and Doug Lea and Christine H. Flood},
+  title     = {Fast Splittable Pseudorandom Number Generators},
+  booktitle = {Proceedings of the 2014 ACM International Conference on Object Oriented Programming Systems Languages \& Applications (OOPSLA)},
+  pages     = {453--472}, year = {2014}, publisher = {ACM},
+  doi       = {10.1145/2660193.2660195}
+}
+
+@article{lecuyer2002streams,
+  author  = {Pierre L'Ecuyer and Richard Simard and E. Jack Chen and W. David Kelton},
+  title   = {An Object-Oriented Random-Number Package with Many Long Streams and Substreams},
+  journal = {Operations Research}, volume = {50}, number = {6}, pages = {1073--1075},
+  year    = {2002}, doi = {10.1287/opre.50.6.1073.358}
+}
+
+@article{walker1977alias,
+  author  = {Alastair J. Walker},
+  title   = {An Efficient Method for Generating Discrete Random Variables with General Distributions},
+  journal = {ACM Transactions on Mathematical Software}, volume = {3}, number = {3},
+  pages   = {253--256}, year = {1977}, doi = {10.1145/355744.355749}
+}
+
+@article{vose1991alias,
+  author  = {Michael D. Vose},
+  title   = {A Linear Algorithm for Generating Random Numbers with a Given Distribution},
+  journal = {IEEE Transactions on Software Engineering}, volume = {17}, number = {9},
+  pages   = {972--975}, year = {1991}, doi = {10.1109/32.92917}
+}
+
+@book{devroye1986nonuniform,
+  author    = {Luc Devroye},
+  title     = {Non-Uniform Random Variate Generation},
+  publisher = {Springer-Verlag}, address = {New York, NY}, year = {1986},
+  isbn      = {0387963057}
+}
+
+
+% ============ §6  Streaming & sketch algorithms =====================
+
+@inproceedings{flajolet2007hyperloglog,
+  author    = {Philippe Flajolet and {\'E}ric Fusy and Olivier Gandouet and Fr{\'e}d{\'e}ric Meunier},
+  title     = {HyperLogLog: The Analysis of a Near-Optimal Cardinality Estimation Algorithm},
+  booktitle = {Proceedings of the 2007 International Conference on Analysis of Algorithms (AofA)},
+  series    = {Discrete Mathematics and Theoretical Computer Science Proceedings},
+  volume    = {AH}, pages = {137--156}, year = {2007}, doi = {10.46298/dmtcs.3545}
+}
+
+@article{cormode2005countmin,
+  author  = {Graham Cormode and S. Muthukrishnan},
+  title   = {An Improved Data Stream Summary: The Count-Min Sketch and Its Applications},
+  journal = {Journal of Algorithms}, volume = {55}, number = {1}, pages = {58--75},
+  year    = {2005}, doi = {10.1016/j.jalgor.2003.12.001}
+}
+
+@inproceedings{karnin2016kll,
+  author    = {Zohar S. Karnin and Kevin J. Lang and Edo Liberty},
+  title     = {Optimal Quantile Approximation in Streams},
+  booktitle = {IEEE 57th Annual Symposium on Foundations of Computer Science (FOCS)},
+  pages     = {71--78}, year = {2016}, doi = {10.1109/FOCS.2016.17}
+}
+
+@article{dunning2019tdigest,
+  author  = {Ted Dunning and Otmar Ertl},
+  title   = {Computing Extremely Accurate Quantiles Using t-Digests},
+  journal = {CoRR}, volume = {abs/1902.04023}, year = {2019},
+  note    = {arXiv preprint; no peer-reviewed venue. See Dunning (2021) for a reviewed companion}
+}
+
+@article{dunning2021tdigest,
+  author  = {Ted Dunning},
+  title   = {The t-Digest: Efficient Estimates of Distributions},
+  journal = {Software Impacts}, volume = {7}, pages = {100049}, year = {2021},
+  doi     = {10.1016/j.simpa.2020.100049}
+}
+
+@inproceedings{greenwald2001gk,
+  author    = {Michael Greenwald and Sanjeev Khanna},
+  title     = {Space-Efficient Online Computation of Quantile Summaries},
+  booktitle = {Proceedings of the 2001 ACM SIGMOD International Conference on Management of Data},
+  pages     = {58--66}, year = {2001}, doi = {10.1145/375663.375670}
+}
+
+@article{vitter1985reservoir,
+  author  = {Jeffrey Scott Vitter},
+  title   = {Random Sampling with a Reservoir},
+  journal = {ACM Transactions on Mathematical Software}, volume = {11}, number = {1},
+  pages   = {37--57}, year = {1985}, doi = {10.1145/3147.3165}
+}
+
+@inproceedings{tsourakakis2009doulion,
+  author    = {Charalampos E. Tsourakakis and U Kang and Gary L. Miller and Christos Faloutsos},
+  title     = {{DOULION}: Counting Triangles in Massive Graphs with a Coin},
+  booktitle = {Proceedings of the 15th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {837--846}, year = {2009}, doi = {10.1145/1557019.1557111}
+}
+
+@article{mcgregor2014graphstreams,
+  author  = {Andrew McGregor},
+  title   = {Graph Stream Algorithms: A Survey},
+  journal = {SIGMOD Record}, volume = {43}, number = {1}, pages = {9--20},
+  year    = {2014}, doi = {10.1145/2627692.2627694}
+}
+
+@article{alon1999ams,
+  author  = {Noga Alon and Yossi Matias and Mario Szegedy},
+  title   = {The Space Complexity of Approximating the Frequency Moments},
+  journal = {Journal of Computer and System Sciences}, volume = {58}, number = {1},
+  pages   = {137--147}, year = {1999}, doi = {10.1006/jcss.1997.1545}
+}
+
+
+% ============ §7  RAG systems =======================================
+
+@inproceedings{lewis2020rag,
+  author    = {Patrick Lewis and Ethan Perez and Aleksandra Piktus and Fabio Petroni and Vladimir Karpukhin and Naman Goyal and Heinrich K{\"u}ttler and Mike Lewis and Wen-tau Yih and Tim Rockt{\"a}schel and Sebastian Riedel and Douwe Kiela},
+  title     = {Retrieval-Augmented Generation for Knowledge-Intensive {NLP} Tasks},
+  booktitle = {Advances in Neural Information Processing Systems 33 (NeurIPS)},
+  pages     = {9459--9474}, year = {2020}
+}
+
+@inproceedings{karpukhin2020dpr,
+  author    = {Vladimir Karpukhin and Barlas O{\u{g}}uz and Sewon Min and Patrick Lewis and Ledell Wu and Sergey Edunov and Danqi Chen and Wen-tau Yih},
+  title     = {Dense Passage Retrieval for Open-Domain Question Answering},
+  booktitle = {Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  pages     = {6769--6781}, year = {2020}, doi = {10.18653/v1/2020.emnlp-main.550}
+}
+
+@inproceedings{reimers2019sbert,
+  author    = {Nils Reimers and Iryna Gurevych},
+  title     = {Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks},
+  booktitle = {Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing (EMNLP-IJCNLP)},
+  pages     = {3982--3992}, year = {2019}, doi = {10.18653/v1/D19-1410}
+}
+
+@inproceedings{xiao2024bge,
+  author    = {Shitao Xiao and Zheng Liu and Peitian Zhang and Niklas Muennighoff and Defu Lian and Jian-Yun Nie},
+  title     = {{C-Pack}: Packed Resources for General Chinese Embeddings},
+  booktitle = {Proceedings of the 47th International ACM SIGIR Conference on Research and Development in Information Retrieval (SIGIR)},
+  pages     = {641--649}, year = {2024}, doi = {10.1145/3626772.3657878},
+  note      = {the BGE / bge-small embedding models}
+}
+
+@article{wang2022e5,
+  author  = {Liang Wang and Nan Yang and Xiaolong Huang and Binxing Jiao and Linjun Yang and Daxin Jiang and Rangan Majumder and Furu Wei},
+  title   = {Text Embeddings by Weakly-Supervised Contrastive Pre-Training},
+  journal = {CoRR}, volume = {abs/2212.03533}, year = {2022}
+}
+
+@article{johnson2021faiss,
+  author  = {Jeff Johnson and Matthijs Douze and Herv{\'e} J{\'e}gou},
+  title   = {Billion-Scale Similarity Search with {GPUs}},
+  journal = {IEEE Transactions on Big Data}, volume = {7}, number = {3},
+  pages   = {535--547}, year = {2021}, doi = {10.1109/TBDATA.2019.2921572}
+}
+
+@article{malkov2020hnsw,
+  author  = {Yury A. Malkov and Dmitry A. Yashunin},
+  title   = {Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {42}, number = {4}, pages = {824--836}, year = {2020},
+  doi     = {10.1109/TPAMI.2018.2889473}
+}
+
+@article{robertson2009bm25,
+  author  = {Stephen E. Robertson and Hugo Zaragoza},
+  title   = {The Probabilistic Relevance Framework: {BM25} and Beyond},
+  journal = {Foundations and Trends in Information Retrieval}, volume = {3}, number = {4},
+  pages   = {333--389}, year = {2009}, doi = {10.1561/1500000019}
+}
+
+@article{willard2023outlines,
+  author  = {Brandon T. Willard and R{\'e}mi Louf},
+  title   = {Efficient Guided Generation for Large Language Models},
+  journal = {CoRR}, volume = {abs/2307.09702}, year = {2023}
+}
+
+@inproceedings{kwon2023vllm,
+  author    = {Woosuk Kwon and Zhuohan Li and Siyuan Zhuang and Ying Sheng and Lianmin Zheng and Cody Hao Yu and Joseph E. Gonzalez and Hao Zhang and Ion Stoica},
+  title     = {Efficient Memory Management for Large Language Model Serving with {PagedAttention}},
+  booktitle = {Proceedings of the 29th Symposium on Operating Systems Principles (SOSP)},
+  pages     = {611--626}, year = {2023}, doi = {10.1145/3600006.3613165}
+}
+
+@article{qwen2024report,
+  author  = {{Qwen Team}},
+  title   = {Qwen2.5 Technical Report},
+  journal = {CoRR}, volume = {abs/2412.15115}, year = {2024}
+}
+
+@article{abdin2024phi3,
+  author  = {Marah Abdin and others},
+  title   = {Phi-3 Technical Report: A Highly Capable Language Model Locally on Your Phone},
+  journal = {CoRR}, volume = {abs/2404.14219}, year = {2024}
+}
+
+@article{grattafiori2024llama3,
+  author  = {Aaron Grattafiori and others},
+  title   = {The Llama 3 Herd of Models},
+  journal = {CoRR}, volume = {abs/2407.21783}, year = {2024}
+}
+
+
+% ============ §8  Benchmarks & datasets =============================
+
+@inproceedings{erling2015ldbc,
+  author    = {Orri Erling and Alex Averbuch and Josep Llu{\'\i}s Larriba-Pey and Hassan Chafi and Andrey Gubichev and Arnau Prat-P{\'e}rez and Minh-Duc Pham and Peter A. Boncz},
+  title     = {The {LDBC} Social Network Benchmark: Interactive Workload},
+  booktitle = {Proceedings of the 2015 ACM SIGMOD International Conference on Management of Data},
+  pages     = {619--630}, year = {2015}, doi = {10.1145/2723372.2742786}
+}
+
+@inproceedings{huang2023tgb,
+  author    = {Shenyang Huang and Farimah Poursafaei and Jacob Danovitch and Matthias Fey and Weihua Hu and Emanuele Rossi and Jure Leskovec and Michael Bronstein and Guillaume Rabusseau and Reihaneh Rabbany},
+  title     = {Temporal Graph Benchmark for Machine Learning on Temporal Graphs},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS), Datasets and Benchmarks Track},
+  year      = {2023}
+}
+
+@inproceedings{gastinger2024tgb2,
+  author    = {Julia Gastinger and Shenyang Huang and Mikhail Galkin and Erfan Loghmani and Ali Parviz and Farimah Poursafaei and Jacob Danovitch and Emanuele Rossi and Ioannis Koutis and Heiner Stuckenschmidt and Reihaneh Rabbany and Guillaume Rabusseau},
+  title     = {{TGB} 2.0: A Benchmark for Learning on Temporal Knowledge Graphs and Heterogeneous Graphs},
+  booktitle = {Advances in Neural Information Processing Systems 37 (NeurIPS), Datasets and Benchmarks Track},
+  year      = {2024}
+}
+
+@inproceedings{hu2020ogb,
+  author    = {Weihua Hu and Matthias Fey and Marinka Zitnik and Yuxiao Dong and Hongyu Ren and Bowen Liu and Michele Catasta and Jure Leskovec},
+  title     = {Open Graph Benchmark: Datasets for Machine Learning on Graphs},
+  booktitle = {Advances in Neural Information Processing Systems 33 (NeurIPS)},
+  year      = {2020}
+}
+
+@inproceedings{tang2023gadbench,
+  author    = {Jianheng Tang and Fengrui Hua and Ziqi Gao and Peilin Zhao and Jia Li},
+  title     = {{GADBench}: Revisiting and Benchmarking Supervised Graph Anomaly Detection},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS), Datasets and Benchmarks Track},
+  year      = {2023}
+}
+
+@inproceedings{huang2022dgraph,
+  author    = {Xuanwen Huang and Yang Yang and Yang Wang and Chunping Wang and Zhisheng Zhang and Jiarong Xu and Lei Chen and Michalis Vazirgiannis},
+  title     = {{DGraph}: A Large-Scale Financial Dataset for Graph Anomaly Detection},
+  booktitle = {Advances in Neural Information Processing Systems 35 (NeurIPS), Datasets and Benchmarks Track},
+  pages     = {22765--22777}, year = {2022}
+}
+
+
+% ============ Agent-based AML simulators (closest prior art) ========
+
+@misc{suzumura2021amlsim,
+  author       = {Toyotaro Suzumura and Hiroki Kanezashi},
+  title        = {{AMLSim}: A Multi-Agent Based Simulator for Anti-Money Laundering},
+  howpublished = {\url{https://github.com/IBM/AMLSim}},
+  year         = {2021}, note = {IBM; software/dataset artifact (no peer-reviewed paper)}
+}
+
+@inproceedings{altman2023amlworld,
+  author    = {Erik R. Altman and Jovan Blanu{\v{s}}a and Luc von Niederh{\"a}usern and Beni Egressy and Andreea Anghel and Kubilay Atasu},
+  title     = {Realistic Synthetic Financial Transactions for Anti-Money Laundering Models},
+  booktitle = {Advances in Neural Information Processing Systems 36 (NeurIPS), Datasets and Benchmarks Track},
+  year      = {2023}
+}
+
+
+% ============ Domain datasets (fidelity baselines + domain rules) ====
+
+@inproceedings{weber2019elliptic,
+  author    = {Mark Weber and Giacomo Domeniconi and Jie Chen and Daniel Karl I. Weidele and Claudio Bellei and Tom Robinson and Charles E. Leiserson},
+  title     = {Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks for Financial Forensics},
+  booktitle = {KDD Workshop on Anomaly Detection in Finance},
+  year      = {2019}, note = {arXiv:1908.02591}
+}
+
+@inproceedings{elmougy2023ellipticpp,
+  author    = {Youssef Elmougy and Ling Liu},
+  title     = {Demystifying Fraudulent Transactions and Illicit Nodes in the Bitcoin Network for Financial Forensics},
+  booktitle = {Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {3979--3990}, year = {2023}, doi = {10.1145/3580305.3599803},
+  note      = {Elliptic++}
+}
+
+@inproceedings{rayana2015yelpchi,
+  author    = {Shebuti Rayana and Leman Akoglu},
+  title     = {Collective Opinion Spam Detection: Bridging Review Networks and Metadata},
+  booktitle = {Proceedings of the 21st ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {985--994}, year = {2015}, doi = {10.1145/2783258.2783370}
+}
+
+@inproceedings{mcauley2013amazon,
+  author    = {Julian J. McAuley and Jure Leskovec},
+  title     = {From Amateurs to Connoisseurs: Modeling the Evolution of User Expertise through Online Reviews},
+  booktitle = {Proceedings of the 22nd International Conference on World Wide Web (WWW)},
+  pages     = {897--908}, year = {2013}, doi = {10.1145/2488388.2488466}
+}
+
+@inproceedings{ott2011deceptive,
+  author    = {Myle Ott and Yejin Choi and Claire Cardie and Jeffrey T. Hancock},
+  title     = {Finding Deceptive Opinion Spam by Any Stretch of the Imagination},
+  booktitle = {Proceedings of the 49th Annual Meeting of the Association for Computational Linguistics: Human Language Technologies (ACL-HLT)},
+  pages     = {309--319}, year = {2011}
+}
+
+@inproceedings{kumar2018rev2,
+  author    = {Srijan Kumar and Bryan Hooi and Disha Makhija and Mohit Kumar and Christos Faloutsos and V. S. Subrahmanian},
+  title     = {{REV2}: Fraudulent User Prediction in Rating Platforms},
+  booktitle = {Proceedings of the 11th ACM International Conference on Web Search and Data Mining (WSDM)},
+  pages     = {333--341}, year = {2018}, doi = {10.1145/3159652.3159729}
+}
+
+@inproceedings{sharafaldin2018cicids,
+  author    = {Iman Sharafaldin and Arash Habibi Lashkari and Ali A. Ghorbani},
+  title     = {Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization},
+  booktitle = {Proceedings of the 4th International Conference on Information Systems Security and Privacy (ICISSP)},
+  pages     = {108--116}, year = {2018}, doi = {10.5220/0006639801080116}
+}
+
+@inproceedings{moustafa2015unswnb15,
+  author    = {Nour Moustafa and Jill Slay},
+  title     = {{UNSW-NB15}: A Comprehensive Data Set for Network Intrusion Detection Systems},
+  booktitle = {2015 Military Communications and Information Systems Conference (MilCIS)},
+  pages     = {1--6}, year = {2015}, doi = {10.1109/MilCIS.2015.7348942}
+}
+
+@misc{kent2015lanl,
+  author    = {Alexander D. Kent},
+  title     = {Comprehensive, Multi-Source Cyber-Security Events Data Set},
+  year      = {2015}, publisher = {Los Alamos National Laboratory},
+  doi       = {10.17021/1179829},
+  note      = {\url{https://csr.lanl.gov/data/cyber1/}}
+}
+
+@inproceedings{anjum2021optc,
+  author    = {Md. Monowar Anjum and Shahrear Iqbal and Beno{\^\i}t Hamelin},
+  title     = {Analyzing the Usefulness of the {DARPA} {OpTC} Dataset in Cyber Threat Detection Research},
+  booktitle = {Proceedings of the 26th ACM Symposium on Access Control Models and Technologies (SACMAT)},
+  pages     = {27--32}, year = {2021}, doi = {10.1145/3450569.3463573},
+  note      = {DARPA OpTC dataset; arXiv:2103.03080}
+}
+
+% ============================================================================
+%  Evaluation methodology (docs/EVAL.md). GraphRNN/O'Bray/Gretton/Clauset/
+%  TimeGAN already present above; only the additional works are listed here.
+% ============================================================================
+@inproceedings{thompson2022evaluation,
+  author    = {Rylee Thompson and Boris Knyazev and Elahe Ghalebi and Jungtaek Kim and Graham W. Taylor},
+  title     = {On Evaluation Metrics for Graph Generative Models},
+  booktitle = {International Conference on Learning Representations (ICLR)}, year = {2022}
+}
+@article{hocevar2014orca,
+  author  = {Toma{\v{z}} Ho{\v{c}}evar and Janez Dem{\v{s}}ar},
+  title   = {A combinatorial approach to graphlet counting},
+  journal = {Bioinformatics}, volume = {30}, number = {4}, pages = {559--565}, year = {2014}
+}
+@article{yaveroglu2014gcd,
+  author  = {{\"O}mer Nebil Yaveroglu and Noel Malod-Dognin and Darren Davis and Zoran Levnajic and Vuk Janjic and Rasa Karapandza and Aleksandar Stojmirovic and Nata{\v{s}}a Pr{\v{z}}ulj},
+  title   = {Revealing the Hidden Language of Complex Networks},
+  journal = {Scientific Reports}, volume = {4}, pages = {4547}, year = {2014}
+}
+@inproceedings{tsitsulin2018netlsd,
+  author    = {Anton Tsitsulin and Davide Mottin and Panagiotis Karras and Alexander Bronstein and Emmanuel M{\"u}ller},
+  title     = {{NetLSD}: Hearing the Shape of a Graph},
+  booktitle = {Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {2347--2356}, year = {2018}
+}
+@article{bagrow2019portrait,
+  author  = {James P. Bagrow and Erik M. Bollt},
+  title   = {An information-theoretic, all-scales approach to comparing networks},
+  journal = {Applied Network Science}, volume = {4}, number = {1}, pages = {45}, year = {2019}
+}
+@article{sejdinovic2013energy,
+  author  = {Dino Sejdinovic and Bharath Sriperumbudur and Arthur Gretton and Kenji Fukumizu},
+  title   = {Equivalence of distance-based and {RKHS}-based statistics in hypothesis testing},
+  journal = {The Annals of Statistics}, volume = {41}, number = {5}, pages = {2263--2291}, year = {2013}
+}
+@article{alstott2014powerlaw,
+  author  = {Jeff Alstott and Ed Bullmore and Dietmar Plenz},
+  title   = {powerlaw: A Python Package for Analysis of Heavy-Tailed Distributions},
+  journal = {PLOS ONE}, volume = {9}, number = {1}, pages = {e85777}, year = {2014}
+}
+@article{goh2008burstiness,
+  author  = {K.-I. Goh and A.-L. Barab{\'a}si},
+  title   = {Burstiness and memory in complex systems},
+  journal = {EPL (Europhysics Letters)}, volume = {81}, number = {4}, pages = {48002}, year = {2008}
+}
+@article{kim2016burstiness,
+  author  = {Eun-Kyeong Kim and Hang-Hyun Jo},
+  title   = {Measuring burstiness for finite event sequences},
+  journal = {Physical Review E}, volume = {94}, number = {3}, pages = {032311}, year = {2016}
+}
+@inproceedings{paranjape2017motifs,
+  author    = {Ashwin Paranjape and Austin R. Benson and Jure Leskovec},
+  title     = {Motifs in Temporal Networks},
+  booktitle = {Proceedings of the 10th ACM International Conference on Web Search and Data Mining (WSDM)},
+  pages     = {601--610}, year = {2017}
+}
+@article{holme2012temporal,
+  author  = {Petter Holme and Jari Saram{\"a}ki},
+  title   = {Temporal Networks},
+  journal = {Physics Reports}, volume = {519}, number = {3}, pages = {97--125}, year = {2012}
+}
+@inproceedings{gupta2022tigger,
+  author    = {Shubham Gupta and Sahil Manchanda and Sayan Ranu and Srikanta J. Bedathur},
+  title     = {{TIGGER}: Scalable Generative Modelling for Temporal Interaction Graphs},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence}, year = {2022}
+}
+@inproceedings{zhou2020taggen,
+  author    = {Dawei Zhou and Lecheng Zheng and Jiawei Han and Jingrui He},
+  title     = {A Data-Driven Graph Generative Model for Temporal Interaction Networks},
+  booktitle = {Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {401--411}, year = {2020}
+}
+@inproceedings{lopezpaz2017c2st,
+  author    = {David Lopez-Paz and Maxime Oquab},
+  title     = {Revisiting Classifier Two-Sample Tests},
+  booktitle = {International Conference on Learning Representations (ICLR)}, year = {2017}
+}
+@article{esteban2017rcgan,
+  author  = {Crist{\'o}bal Esteban and Stephanie L. Hyland and Gunnar R{\"a}tsch},
+  title   = {Real-valued (Medical) Time Series Generation with Recurrent Conditional {GAN}s},
+  journal = {arXiv preprint arXiv:1706.02633}, year = {2017},
+  note    = {NeurIPS 2017 Workshop on ML for Health; origin of TSTR}
+}
+@inproceedings{shokri2017membership,
+  author    = {Reza Shokri and Marco Stronati and Congzheng Song and Vitaly Shmatikov},
+  title     = {Membership Inference Attacks Against Machine Learning Models},
+  booktitle = {IEEE Symposium on Security and Privacy (S\&P)}, pages = {3--18}, year = {2017}
+}
+@inproceedings{chen2020ganleaks,
+  author    = {Dingfan Chen and Ning Yu and Yang Zhang and Mario Fritz},
+  title     = {{GAN-Leaks}: A Taxonomy of Membership Inference Attacks against Generative Models},
+  booktitle = {Proceedings of the 2020 ACM SIGSAC Conference on Computer and Communications Security (CCS)},
+  pages     = {343--362}, year = {2020}
+}
+@inproceedings{vanbreugel2023domias,
+  author    = {Boris van Breugel and Hao Sun and Zhaozhi Qian and Mihaela van der Schaar},
+  title     = {Membership Inference Attacks against Synthetic Data through Overfitting Detection},
+  booktitle = {Proceedings of the 26th International Conference on Artificial Intelligence and Statistics (AISTATS)},
+  series    = {PMLR}, volume = {206}, pages = {3493--3514}, year = {2023}
+}
+@inproceedings{boncz2013tpch,
+  author    = {Peter Boncz and Thomas Neumann and Orri Erling},
+  title     = {{TPC-H} Analyzed: Hidden Messages and Lessons Learned from an Influential Benchmark},
+  booktitle = {Technology Conference on Performance Evaluation and Benchmarking (TPCTC)},
+  pages     = {61--76}, year = {2013}
+}
+@inproceedings{emmott2013anomaly,
+  author    = {Andrew F. Emmott and Shubhomoy Das and Thomas Dietterich and Alan Fern and Weng-Keen Wong},
+  title     = {Systematic Construction of Anomaly Detection Benchmarks from Real Data},
+  booktitle = {ACM SIGKDD Workshop on Outlier Detection and Description (ODD)}, pages = {16--21}, year = {2013}
+}
+@article{campos2016evaluation,
+  author  = {Guilherme O. Campos and Arthur Zimek and J{\"o}rg Sander and Ricardo J. G. B. Campello and Barbora Micenkov{\'a} and Erich Schubert and Ira Assent and Michael E. Houle},
+  title   = {On the evaluation of unsupervised outlier detection: measures, datasets, and an empirical study},
+  journal = {Data Mining and Knowledge Discovery}, volume = {30}, number = {4}, pages = {891--927}, year = {2016}
+}
+@inproceedings{han2022adbench,
+  author    = {Songqiao Han and Xiyang Hu and Hailiang Huang and Minqi Jiang and Yue Zhao},
+  title     = {{ADBench}: Anomaly Detection Benchmark},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS) Datasets and Benchmarks Track}, year = {2022}
+}
+@article{wu2021flawed,
+  author  = {Renjie Wu and Eamonn J. Keogh},
+  title   = {Current Time Series Anomaly Detection Benchmarks are Flawed and are Creating the Illusion of Progress},
+  journal = {IEEE Transactions on Knowledge and Data Engineering}, year = {2021}, note = {arXiv:2009.13807}
+}
+
+@inproceedings{sagademo2026,
+  author    = {Anonymous},
+  title     = {An interactive demonstration of the {SAGA} temporal-graph generator},
+  booktitle = {Proc.\ VLDB Endowment, Demonstration Track (to appear)},
+  year      = {2026},
+  note      = {Citation anonymized for double-blind review; de-anonymized in camera-ready}
+}
+
+@article{athreya2018rdpg,
+  author  = {Avanti Athreya and Donniell E. Fishkind and Minh Tang and Carey E. Priebe and Youngser Park and Joshua T. Vogelstein and Keith Levin and Vince Lyzinski and Yichen Qin and Daniel L. Sussman},
+  title   = {Statistical Inference on Random Dot Product Graphs: A Survey},
+  journal = {Journal of Machine Learning Research},
+  volume  = {18}, number = {226}, pages = {1--92}, year = {2018}
+}
+
+@inproceedings{xu2019ctgan,
+  author    = {Lei Xu and Maria Skoularidou and Alfredo Cuesta-Infante and Kalyan Veeramachaneni},
+  title     = {Modeling Tabular Data using Conditional {GAN}},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2019}
+}
+
+@article{massey1951ks,
+  author  = {Frank J. Massey Jr.},
+  title   = {The {Kolmogorov-Smirnov} Test for Goodness of Fit},
+  journal = {Journal of the American Statistical Association},
+  volume  = {46}, number = {253}, pages = {68--78}, year = {1951}
+}
+
+@book{villani2009ot,
+  author    = {C{\'e}dric Villani},
+  title     = {Optimal Transport: Old and New},
+  publisher = {Springer}, year = {2009}
+}
+
+@article{seidman1983kcore,
+  author  = {Stephen B. Seidman},
+  title   = {Network Structure and Minimum Degree},
+  journal = {Social Networks},
+  volume  = {5}, number = {3}, pages = {269--287}, year = {1983}
+}

@@ -1,0 +1,370 @@
+# AGORA built-in rule base — Domain 1: Finance / Anti-Money-Laundering.
+# Grounded in DOMAINS.md §1; standards provenance per CORPUS.md (FATF, FinCEN).
+# Anomaly source type: ADVERSARIAL.
+# YAML note: `!tag` selects an enum variant (serde_yaml external tagging).
+
+meta:
+  id: finance
+  name: Finance / AML
+  description: >-
+    Retail+business payment network with FATF-typology money-laundering
+    anomalies (structuring, layering, fan-in/out, round-tripping, mules).
+  schema_version: 1
+  provenance:
+    - source: FATF 40 Recommendations (2012, upd. 2025)
+      url: https://www.fatf-gafi.org
+      license_tier: B
+    - source: FinCEN 31 CFR Chapter X (CTR $10k, SAR $5k, structuring)
+      url: https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X
+      license_tier: A
+    - source: DOMAINS.md dossier 1 (Elliptic/AMLworld/DGraph base rates)
+
+entity_types:
+  - name: account
+    population_weight: 0.90
+    attributes:
+      - name: type
+        kind: !categorical { values: [retail, business, shell], weights: [0.85, 0.13, 0.02] }
+      - name: jurisdiction
+        kind: !categorical { values: [US, EU, UK, APAC, LATAM, OFFSHORE], weights: [0.35, 0.25, 0.10, 0.18, 0.07, 0.05] }
+      - name: kyc_level
+        kind: !ordinal { tiers: [basic, standard, enhanced], weights: [0.25, 0.60, 0.15] }
+      - name: risk_tier
+        kind: !ordinal { tiers: [low, medium, high], weights: [0.70, 0.25, 0.05] }
+      - name: age_days
+        kind: !numeric { dist: !log_normal { mu: 6.5, sigma: 1.0 } }
+    state:
+      - name: balance
+        init: !log_normal { mu: 8.0, sigma: 1.5 }   # median ≈ $3k, heavy tail
+      - name: txn_count
+        init: !constant { value: 0.0 }
+      - name: cum_in
+        init: !constant { value: 0.0 }
+      - name: cum_out
+        init: !constant { value: 0.0 }
+
+  - name: merchant
+    population_weight: 0.08
+    attributes:
+      - name: mcc
+        kind: !categorical { values: [grocery, fuel, restaurant, online_retail, travel, gambling, luxury], weights: [0.22, 0.14, 0.20, 0.25, 0.08, 0.04, 0.07] }
+      - name: cash_intensive
+        kind: !flag { p: 0.18 }
+    state:
+      - name: revenue
+        init: !constant { value: 0.0 }
+
+  - name: institution
+    population_weight: 0.02
+    attributes:
+      - name: country
+        kind: !categorical { values: [US, EU, UK, APAC, LATAM, OFFSHORE], weights: [0.30, 0.25, 0.12, 0.18, 0.08, 0.07] }
+      - name: correspondent
+        kind: !flag { p: 0.25 }
+    state:
+      - name: volume
+        init: !constant { value: 0.0 }
+
+relations:
+  # Peer payment network: hubs emerge via preferential attachment.
+  - name: counterparty_net
+    src: account
+    dst: account
+    model: !preferential_attachment { m: 3 }
+    layer: skeleton
+    mean_degree: 6.0
+  # Patronage: which merchants an account CAN buy from (Zipf popularity).
+  - name: patronage
+    src: account
+    dst: merchant
+    model: !affiliation
+      popularity: !zipf { n: 1000000, exponent: 1.1 }
+    layer: skeleton
+    mean_degree: 9.0
+  # Banking relationship: account -> institution (branch/bank).
+  - name: banking
+    src: account
+    dst: institution
+    model: !affiliation
+      popularity: !zipf { n: 100000, exponent: 1.3 }
+    layer: skeleton
+    mean_degree: 1.5
+
+event_types:
+  - name: transfer
+    src: account
+    dst: account
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 5.2, sigma: 1.4 } }   # median ≈ $180
+      - name: channel
+        kind: !categorical { values: [wire, ach, card, cash, crypto_onramp], weights: [0.18, 0.42, 0.30, 0.07, 0.03] }
+      - name: is_cross_border
+        kind: !flag { p: 0.08 }
+    effects:
+      - !sub_from_src { var: balance, from_attr: amount }
+      - !add_to_dst { var: balance, from_attr: amount }
+      - !add_to_src { var: cum_out, from_attr: amount }
+      - !add_to_dst { var: cum_in, from_attr: amount }
+      - !increment_src { var: txn_count }
+
+  - name: purchase
+    src: account
+    dst: merchant
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 3.6, sigma: 1.1 } }   # median ≈ $37
+      - name: channel
+        kind: !categorical { values: [card, online, cash], weights: [0.55, 0.35, 0.10] }
+    effects:
+      - !sub_from_src { var: balance, from_attr: amount }
+      - !add_to_dst { var: revenue, from_attr: amount }
+      - !increment_src { var: txn_count }
+
+  - name: cash_deposit
+    src: account
+    dst: institution
+    attributes:
+      # Hierarchical: coarse->fine taxonomy path (cash physical-tender is the
+      # FATF placement high-risk branch; the grain is what a detector rolls up on).
+      - name: channel
+        kind: !taxonomy
+          paths:
+            - cash/domestic/small_bills
+            - cash/domestic/large_bills
+            - cash/foreign_currency
+            - instrument/money_order
+            - instrument/cashiers_check
+            - wire/inbound_domestic
+            - wire/inbound_cross_border
+          weights: [0.34, 0.15, 0.05, 0.08, 0.06, 0.22, 0.10]
+      # Graded: ordinal source-of-funds AML risk (FATF R.10 CDD; FinCEN SAR).
+      - name: source_of_funds_grade
+        kind: !ordinal
+          tiers: [payroll_documented, business_receipts, third_party_declared, unverified, high_risk_corridor]
+          weights: [0.40, 0.34, 0.15, 0.08, 0.03]
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 5.8, sigma: 1.2 } }
+    effects:
+      - !add_to_src { var: balance, from_attr: amount }
+      - !add_to_src { var: cum_in, from_attr: amount }
+      - !add_to_dst { var: volume, from_attr: amount }
+
+  - name: cash_withdrawal
+    src: account
+    dst: institution
+    attributes:
+      - name: amount
+        kind: !numeric { dist: !log_normal { mu: 5.0, sigma: 1.0 } }
+    effects:
+      - !sub_from_src { var: balance, from_attr: amount }
+      - !add_to_src { var: cum_out, from_attr: amount }
+
+behaviors:
+  - name: retail_activity
+    actor: account
+    actor_filter: [{ attr: type, value: retail }]
+    timing:
+      rate_per_day: 1.8
+      diurnal: [0.2,0.1,0.1,0.1,0.1,0.2,0.5,0.9,1.2,1.4,1.5,1.6,1.7,1.5,1.4,1.4,1.5,1.7,1.8,1.6,1.3,1.0,0.6,0.4]
+      weekly: [1.0, 1.0, 1.0, 1.05, 1.35, 1.15, 0.85]   # payroll-Friday bump
+      burst_p: 0.15
+      burst_mean_len: 2.0
+    events:
+      - event: purchase
+        weight: 0.72
+        counterparty: !repeat_or_neighbor { relation: patronage, repeat_p: 0.55 }
+      - event: transfer
+        weight: 0.22
+        counterparty: !repeat_or_neighbor { relation: counterparty_net, repeat_p: 0.45 }
+      - event: cash_withdrawal
+        weight: 0.04
+        counterparty: !skeleton_neighbor { relation: banking }
+      - event: cash_deposit
+        weight: 0.02
+        counterparty: !skeleton_neighbor { relation: banking }
+    activity: !log_normal { mu: 0.0, sigma: 0.6 }
+
+  - name: business_activity
+    actor: account
+    actor_filter: [{ attr: type, value: business }]
+    timing:
+      rate_per_day: 9.0
+      diurnal: [0.1,0.1,0.1,0.1,0.2,0.4,0.9,1.6,2.0,2.2,2.2,2.1,1.9,2.0,2.1,2.0,1.8,1.4,0.9,0.5,0.3,0.2,0.1,0.1]
+      weekly: [1.2, 1.15, 1.1, 1.1, 1.25, 0.45, 0.25]
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: transfer
+        weight: 0.70
+        counterparty: !repeat_or_neighbor { relation: counterparty_net, repeat_p: 0.65 }
+      - event: cash_deposit
+        weight: 0.20
+        counterparty: !skeleton_neighbor { relation: banking }
+      - event: purchase
+        weight: 0.10
+        counterparty: !repeat_or_neighbor { relation: patronage, repeat_p: 0.70 }
+    activity: !log_normal { mu: 0.5, sigma: 0.8 }
+
+  - name: shell_low_profile
+    actor: account
+    actor_filter: [{ attr: type, value: shell }]
+    timing:
+      rate_per_day: 0.15
+      burst_p: 0.05
+      burst_mean_len: 1.5
+    events:
+      - event: transfer
+        weight: 1.0
+        counterparty: !skeleton_neighbor { relation: counterparty_net }
+    activity: !log_normal { mu: 0.0, sigma: 0.4 }
+
+constraints:
+  - name: balance_non_negative
+    check: !state_non_negative { entity: account, var: balance }
+    description: outflow ≤ inflow + balance (no unlimited overdraft)
+  - name: transfer_amount_range
+    check: !attr_range { event: transfer, attr: amount, min: 0.01, max: 1.0e9 }
+  - name: ctr_structuring_window
+    check: !sub_threshold_count { event: cash_deposit, attr: amount, threshold: 10000.0, floor: 7000.0, k: 4, window_s: 604800 }
+    description: ">=4 near-threshold ($7k-$10k; CTR, 31 CFR 1010.311) cash deposits within 7d ⇒ structuring candidate"
+  - name: transfer_velocity_cap
+    check: !rate_limit { event: transfer, k: 500, window_s: 86400 }
+    description: implausible per-account transfer velocity
+  - name: mule_dwell
+    check: !documented { rule: "out/in ≈ 1 with dwell < 48h on a low-history account ⇒ mule candidate" }
+
+adversaries:
+  - intent: structuring
+    description: >-
+      Smurfing: mules make many sub-CTR cash deposits, then forward to a
+      collector (FATF placement typology; 31 CFR 1010.100 structuring).
+    actor: account
+    stages:
+      - name: smurf_deposits
+        duration_days: !uniform { min: 7.0, max: 21.0 }
+        activity_multiplier: !uniform { min: 0.1449, max: 0.5794 }   # 1.0-4.0/day vs normal account 6.90/day
+        event: cash_deposit
+        scope: !normal
+        attr_overrides:
+          - attr: amount
+            dist: !uniform { min: 8200.0, max: 9900.0 }
+      - name: aggregate_to_collector
+        duration_days: !uniform { min: 2.0, max: 6.0 }
+        activity_multiplier: !uniform { min: 0.1449, max: 0.4346 }   # 1.0-3.0/day vs normal account 6.90/day
+        event: transfer
+        scope: !collector
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 9.0, sigma: 0.4 }
+    camouflage: 0.5
+    prevalence_weight: 0.30
+    ring_size: !uniform { min: 3.0, max: 12.0 }
+    cascade_p: 0.10
+
+  - intent: layering
+    description: >-
+      Rapid pass-through chains across jurisdictions with near-zero net
+      balance; dwell time and legit intermediaries are the camouflage.
+    actor: account
+    stages:
+      - name: chain_hops
+        duration_days: !uniform { min: 3.0, max: 10.0 }
+        activity_multiplier: !uniform { min: 0.5794, max: 1.7382 }   # 4.0-12.0/day vs normal account 6.90/day
+        event: transfer
+        scope: !chain
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 9.5, sigma: 0.6 }
+    camouflage: 0.6
+    prevalence_weight: 0.25
+    ring_size: !uniform { min: 4.0, max: 10.0 }
+    cascade_p: 0.15
+
+  - intent: fan_in_out
+    description: Scatter–gather degree spikes (collection then dispersal).
+    actor: account
+    stages:
+      - name: gather
+        duration_days: !uniform { min: 1.0, max: 5.0 }
+        activity_multiplier: !uniform { min: 0.8691, max: 2.8971 }   # 6.0-20.0/day vs normal account 6.90/day
+        event: transfer
+        scope: !collector
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 7.5, sigma: 0.8 }
+      - name: scatter
+        duration_days: !uniform { min: 1.0, max: 4.0 }
+        activity_multiplier: !uniform { min: 0.8691, max: 2.8971 }   # 6.0-20.0/day vs normal account 6.90/day
+        event: transfer
+        scope: !victims
+          count: !uniform { min: 10.0, max: 40.0 }
+    camouflage: 0.4
+    prevalence_weight: 0.20
+    ring_size: !uniform { min: 5.0, max: 25.0 }
+    cascade_p: 0.05
+
+  - intent: round_tripping
+    description: Directed cycle A→…→A with conserved value over a short horizon.
+    actor: account
+    stages:
+      - name: cycle
+        duration_days: !uniform { min: 2.0, max: 8.0 }
+        activity_multiplier: !uniform { min: 0.2897, max: 0.8691 }   # 2.0-6.0/day vs normal account 6.90/day
+        event: transfer
+        scope: !chain
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 10.0, sigma: 0.3 }
+    camouflage: 0.55
+    prevalence_weight: 0.15
+    ring_size: !uniform { min: 3.0, max: 8.0 }
+    cascade_p: 0.08
+
+  - intent: mule_network
+    description: >-
+      Reactivated/dormant accounts with in≈out and short dwell, forwarding
+      to fresh wallets-of-the-day.
+    actor: account
+    stages:
+      - name: receive
+        duration_days: !uniform { min: 1.0, max: 3.0 }
+        # TODO(rates): k unreviewed — this stage's direction changed (collector
+        # -> sources), so its k is now "inbound transfers received per mule per
+        # day" rather than "transfers sent per mule per day". Needs re-grounding.
+        activity_multiplier: !uniform { min: 0.1449, max: 0.5794 }   # 1.0-4.0/day vs normal account 6.90/day
+        event: transfer
+        # A mule RECEIVES: outside accounts pay INTO each mule. Under the old
+        # `!collector` this stage made the mules SEND to members[0], inverting
+        # the flow the stage name (and the in≈out dwell signature) describes.
+        scope: !sources
+          count: !uniform { min: 3.0, max: 10.0 }
+        attr_overrides:
+          - attr: amount
+            dist: !log_normal { mu: 8.0, sigma: 0.7 }
+      - name: forward
+        duration_days: !uniform { min: 1.0, max: 2.0 }
+        activity_multiplier: !uniform { min: 0.2897, max: 0.8691 }   # 2.0-6.0/day vs normal account 6.90/day
+        event: transfer
+        scope: !victims
+          count: !uniform { min: 3.0, max: 10.0 }
+    camouflage: 0.45
+    prevalence_weight: 0.10
+    ring_size: !uniform { min: 4.0, max: 15.0 }
+    cascade_p: 0.12
+
+failures: []
+
+control:
+  prevalence: 0.02        # illicit nodes are rare: ~2% (Elliptic), ~1.3% (DGraph)
+  difficulty: 0.5
+  type_mix: []            # default: per-process prevalence weights
+  placement: !clustered { n_communities: 8 }
+  cascade: 1.0
+  homophily: 0.95        # anomaly homophily: illicit actors preferentially
+                         # transact with each other (Elliptic). Biases BOTH a
+                         # marked actor's campaign edges AND its normal background
+                         # edges toward other marked actors (P1-a deeper fix),
+                         # lifting measured homophily 2.25 -> 12.99 (real Elliptic
+                         # 13.27) while degree ratio (~0.51x) and in/out (~1.19)
+                         # stay flat / move toward real. See docs/ENGINE_ISSUES.md.

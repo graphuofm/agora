@@ -1,0 +1,544 @@
+# AGORA built-in rule base — Domain 6: Healthcare / Insurance Claims Fraud.
+# Grounded in DOMAINS.md §6; standards provenance per CORPUS.md domain 6
+# (CMS NCCI PTP/MUE, OIG LEIE, Stark/Anti-Kickback, ICD-10/HCPCS, Synthea).
+# Anomaly source type: ADVERSARIAL.
+# YAML note: `!tag` selects an enum variant (serde_yaml external tagging).
+
+meta:
+  id: healthcare
+  name: Healthcare / Insurance Claims Fraud
+  description: >-
+    Heterogeneous tripartite provider-patient-pharmacy claims graph with
+    NHCAA/OIG fraud schemes: upcoding, phantom billing, unbundling,
+    kickback rings, and doctor shopping. Honest billing is heavy-tailed
+    log-normal with specialty code-fingerprints, bounded services per
+    beneficiary, and local care pathways; adversaries camouflage by staying
+    inside peer-percentile bands and distributing across beneficiaries.
+  schema_version: 1
+  provenance:
+    - source: CMS NCCI — PTP edits, Add-On edits, MUE (quarterly; unbundling + max-units/day)
+      url: https://www.cms.gov/medicare/coding-billing/national-correct-coding-initiative-ncci-edits
+      license_tier: A
+    - source: HHS-OIG LEIE (excluded-provider roster = ground-truth bad-actor labels; Bauder & Khoshgoftaar, J. Big Data 2018)
+      url: https://oig.hhs.gov/exclusions
+      license_tier: A
+    - source: Stark Law 42 USC 1395nn + Anti-Kickback 42 USC 1320a-7b + 42 CFR safe harbors
+      url: https://www.ecfr.gov/current/title-42
+      license_tier: A
+    - source: Code sets — ICD-10-CM/PCS (CDC/CMS), HCPCS Level II (CMS); CPT codes only (AMA descriptors paywalled)
+      url: https://www.cms.gov/medicare/coding-billing/icd-10-codes
+      license_tier: A
+    - source: CMS Medicare Provider Utilization & Payment PUFs (Part B / Part D prescriber); CMS Part D opioid benchmarks
+      url: https://data.cms.gov
+      license_tier: A
+    - source: Synthea synthetic EHR/claims (Walonoski et al., JAMIA 2018; prior art for synthetic claim graphs)
+      license_tier: A
+    - source: DOMAINS.md dossier 6 (NHCAA/OIG/GAO scheme taxonomy; no standard heterogeneous-temporal healthcare-fraud graph benchmark — gap AGORA fills)
+
+entity_types:
+  - name: provider
+    population_weight: 0.10
+    attributes:
+      - name: specialty
+        kind: !categorical { values: [family_practice, internal_med, cardiology, orthopedics, pain_mgmt, dme_supplier, lab], weights: [0.24, 0.22, 0.10, 0.10, 0.08, 0.13, 0.13] }
+      - name: excluded
+        kind: !flag { p: 0.01 }   # LEIE roster prior; excluded providers are rare
+      - name: panel_region
+        kind: !categorical { values: [northeast, midwest, south, west], weights: [0.20, 0.22, 0.38, 0.20] }
+    state:
+      - name: billing_volume
+        init: !constant { value: 0.0 }
+      - name: claim_count
+        init: !constant { value: 0.0 }
+      - name: referral_count
+        init: !constant { value: 0.0 }
+
+  - name: patient
+    population_weight: 0.78
+    attributes:
+      - name: age_band
+        kind: !ordinal { tiers: [pediatric, adult, senior], weights: [0.18, 0.52, 0.30] }
+      - name: chronic
+        kind: !flag { p: 0.34 }
+      - name: dual_eligible
+        kind: !flag { p: 0.20 }
+    state:
+      - name: claim_count
+        init: !constant { value: 0.0 }
+      - name: distinct_prescribers
+        init: !constant { value: 0.0 }
+      - name: opioid_days
+        init: !constant { value: 0.0 }
+
+  - name: pharmacy
+    population_weight: 0.07
+    attributes:
+      - name: kind
+        kind: !categorical { values: [retail_chain, independent, mail_order, specialty], weights: [0.45, 0.30, 0.15, 0.10] }
+    state:
+      - name: dispensed_volume
+        init: !constant { value: 0.0 }
+
+  - name: drug
+    population_weight: 0.05
+    attributes:
+      - name: ndc_class
+        kind: !categorical { values: [antibiotic, statin, antihypertensive, analgesic, opioid, controlled_benzo], weights: [0.22, 0.20, 0.22, 0.18, 0.10, 0.08] }
+      - name: opioid_flag
+        kind: !flag { p: 0.18 }
+    state:
+      - name: rx_count
+        init: !constant { value: 0.0 }
+
+relations:
+  # Provider -> patient panel (bipartite affiliation; Zipf-popular high-volume providers).
+  - name: panel
+    src: provider
+    dst: patient
+    model: !affiliation
+      popularity: !zipf { n: 2000000, exponent: 1.1 }
+    layer: skeleton
+    mean_degree: 40.0
+  # Pharmacy -> patient served (bipartite affiliation).
+  - name: served
+    src: pharmacy
+    dst: patient
+    model: !affiliation
+      popularity: !zipf { n: 2000000, exponent: 1.05 }
+    layer: skeleton
+    mean_degree: 60.0
+  # Patient -> drug formulary they CAN be prescribed (bipartite).
+  - name: formulary
+    src: patient
+    dst: drug
+    model: !affiliation
+      popularity: !zipf { n: 50000, exponent: 1.2 }
+    layer: skeleton
+    mean_degree: 3.0
+  # Provider -> provider referral network (hubs emerge; src==dst required).
+  - name: referral_net
+    src: provider
+    dst: provider
+    model: !preferential_attachment { m: 2 }
+    layer: muscle
+    mean_degree: 4.0
+
+event_types:
+  - name: SUBMITTED_CLAIM
+    src: provider
+    dst: patient
+    attributes:
+      # E/M intensity tier as ordinal HCPCS/CPT level (99211..99215 fingerprint).
+      - name: code_intensity
+        kind: !ordinal { tiers: ["level1", "level2", "level3", "level4", "level5"], weights: [0.08, 0.22, 0.40, 0.22, 0.08] }
+      - name: charge
+        kind: !numeric { dist: !log_normal { mu: 4.9, sigma: 1.0 } }   # median ≈ $134, heavy tail
+      - name: units
+        kind: !numeric { dist: !log_normal { mu: 0.2, sigma: 0.5 } }   # bounded by MUE (most = 1)
+      - name: place_of_service
+        kind: !categorical { values: [office, outpatient, inpatient, home, telehealth], weights: [0.55, 0.20, 0.10, 0.08, 0.07] }
+    effects:
+      - !increment_src { var: claim_count }
+      - !increment_dst { var: claim_count }
+      - !add_to_src { var: billing_volume, from_attr: charge }
+
+  - name: PRESCRIBED
+    src: provider
+    dst: patient
+    attributes:
+      - name: days_supply
+        kind: !numeric { dist: !log_normal { mu: 3.2, sigma: 0.5 } }   # median ≈ 25 days
+      - name: qty
+        kind: !numeric { dist: !log_normal { mu: 3.4, sigma: 0.6 } }
+      - name: is_controlled
+        kind: !flag { p: 0.16 }
+    effects:
+      - !increment_dst { var: distinct_prescribers }
+      - !add_to_dst { var: opioid_days, from_attr: days_supply }
+
+  # Provider -> drug(NDC) prescription line (CMS Part D prescriber PUF = provider x NDC).
+  # Activates the drug node type (otherwise formulary-only / isolated) and records
+  # which NDC each prescriber writes; popularity-weighted (few blockbuster drugs).
+  - name: PRESCRIBED_NDC
+    src: provider
+    dst: drug
+    attributes:
+      - name: fill_qty
+        kind: !numeric { dist: !log_normal { mu: 3.4, sigma: 0.6 } }
+    effects:
+      - !increment_dst { var: rx_count }
+
+  - name: DISPENSED
+    src: pharmacy
+    dst: patient
+    attributes:
+      - name: days_supply
+        kind: !numeric { dist: !log_normal { mu: 3.2, sigma: 0.5 } }
+      - name: copay
+        kind: !numeric { dist: !log_normal { mu: 2.0, sigma: 0.8 } }
+    effects:
+      - !increment_src { var: dispensed_volume }
+
+  - name: REFERRED
+    src: provider
+    dst: provider
+    attributes:
+      - name: weight
+        kind: !numeric { dist: !constant { value: 1.0 } }
+    effects:
+      - !add_to_src { var: referral_count, from_attr: weight }
+
+  - name: PAID
+    src: provider
+    dst: patient        # payer settlement is recorded against the provider's claim line
+    attributes:
+      - name: allowed
+        kind: !numeric { dist: !log_normal { mu: 4.6, sigma: 1.0 } }   # allowed < charge
+    effects:
+      - !add_to_src { var: billing_volume, from_attr: allowed }
+
+behaviors:
+  # Primary-care providers: high claim volume, level-3 E/M-centric fingerprint.
+  - name: primary_care_billing
+    actor: provider
+    actor_filter: [{ attr: specialty, value: family_practice }]
+    timing:
+      rate_per_day: 24.0
+      diurnal: [0.0,0.0,0.0,0.0,0.0,0.1,0.4,1.2,2.0,2.3,2.3,2.0,1.4,1.8,2.2,2.1,1.7,1.0,0.4,0.2,0.1,0.0,0.0,0.0]
+      weekly: [1.3, 1.25, 1.2, 1.2, 1.1, 0.25, 0.1]   # clinic weekday pattern
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: SUBMITTED_CLAIM
+        weight: 0.62
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.45 }
+      - event: PRESCRIBED
+        weight: 0.28
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.45 }
+      - event: PRESCRIBED_NDC
+        weight: 0.12
+        counterparty: !global_popularity { entity: drug }
+      - event: REFERRED
+        weight: 0.10
+        counterparty: !skeleton_neighbor { relation: referral_net }
+    activity: !log_normal { mu: 0.0, sigma: 0.7 }
+
+  # Internal medicine: similar but with more referrals and higher-intensity codes.
+  - name: internal_med_billing
+    actor: provider
+    actor_filter: [{ attr: specialty, value: internal_med }]
+    timing:
+      rate_per_day: 20.0
+      weekly: [1.3, 1.25, 1.2, 1.2, 1.1, 0.25, 0.1]
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: SUBMITTED_CLAIM
+        weight: 0.58
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.45 }
+      - event: PRESCRIBED
+        weight: 0.27
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.45 }
+      - event: PRESCRIBED_NDC
+        weight: 0.12
+        counterparty: !global_popularity { entity: drug }
+      - event: REFERRED
+        weight: 0.15
+        counterparty: !skeleton_neighbor { relation: referral_net }
+    activity: !log_normal { mu: 0.1, sigma: 0.8 }
+
+  # Cardiology: procedure/E-M encounters, cardiac-med prescribing, referral hub.
+  - name: cardiology_billing
+    actor: provider
+    actor_filter: [{ attr: specialty, value: cardiology }]
+    timing:
+      rate_per_day: 16.0
+      weekly: [1.3, 1.25, 1.2, 1.2, 1.1, 0.25, 0.1]
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: SUBMITTED_CLAIM
+        weight: 0.60
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.55 }
+      - event: PRESCRIBED
+        weight: 0.25
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.55 }
+      - event: PRESCRIBED_NDC
+        weight: 0.12
+        counterparty: !global_popularity { entity: drug }
+      - event: REFERRED
+        weight: 0.15
+        counterparty: !skeleton_neighbor { relation: referral_net }
+    activity: !log_normal { mu: 0.0, sigma: 0.8 }
+
+  # Orthopedics: surgical/procedure encounters, moderate prescribing + referrals.
+  - name: orthopedics_billing
+    actor: provider
+    actor_filter: [{ attr: specialty, value: orthopedics }]
+    timing:
+      rate_per_day: 14.0
+      weekly: [1.3, 1.25, 1.2, 1.2, 1.1, 0.25, 0.1]
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: SUBMITTED_CLAIM
+        weight: 0.65
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.55 }
+      - event: PRESCRIBED
+        weight: 0.20
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.55 }
+      - event: PRESCRIBED_NDC
+        weight: 0.12
+        counterparty: !global_popularity { entity: drug }
+      - event: REFERRED
+        weight: 0.15
+        counterparty: !skeleton_neighbor { relation: referral_net }
+    activity: !log_normal { mu: 0.0, sigma: 0.8 }
+
+  # Pain management: controlled-substance prescribing heavy (opioid CTR-equivalent).
+  - name: pain_mgmt_billing
+    actor: provider
+    actor_filter: [{ attr: specialty, value: pain_mgmt }]
+    timing:
+      rate_per_day: 18.0
+      weekly: [1.3, 1.25, 1.2, 1.2, 1.1, 0.25, 0.1]
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: SUBMITTED_CLAIM
+        weight: 0.50
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.60 }
+      - event: PRESCRIBED
+        weight: 0.40
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.60 }
+      - event: PRESCRIBED_NDC
+        weight: 0.12
+        counterparty: !global_popularity { entity: drug }
+      - event: REFERRED
+        weight: 0.10
+        counterparty: !skeleton_neighbor { relation: referral_net }
+    activity: !log_normal { mu: 0.0, sigma: 0.8 }
+
+  # DME supplier: high claim-line volume (durable medical equipment), no prescribing.
+  - name: dme_billing
+    actor: provider
+    actor_filter: [{ attr: specialty, value: dme_supplier }]
+    timing:
+      rate_per_day: 26.0
+      weekly: [1.2, 1.2, 1.15, 1.15, 1.1, 0.35, 0.2]
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: SUBMITTED_CLAIM
+        weight: 0.94
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.45 }
+      - event: REFERRED
+        weight: 0.06
+        counterparty: !skeleton_neighbor { relation: referral_net }
+    activity: !log_normal { mu: 0.1, sigma: 0.9 }
+
+  # Independent lab: very high test-claim throughput, no prescribing; referral sink.
+  - name: lab_billing
+    actor: provider
+    actor_filter: [{ attr: specialty, value: lab }]
+    timing:
+      rate_per_day: 30.0
+      weekly: [1.2, 1.2, 1.15, 1.15, 1.1, 0.35, 0.2]
+      burst_p: 0.25
+      burst_mean_len: 3.0
+    events:
+      - event: SUBMITTED_CLAIM
+        weight: 0.95
+        counterparty: !repeat_or_neighbor { relation: panel, repeat_p: 0.40 }
+      - event: REFERRED
+        weight: 0.05
+        counterparty: !skeleton_neighbor { relation: referral_net }
+    activity: !log_normal { mu: 0.1, sigma: 0.9 }
+
+  # Pharmacy dispensing against existing prescriptions.
+  - name: pharmacy_dispensing
+    actor: pharmacy
+    timing:
+      rate_per_day: 12.0
+      weekly: [1.15, 1.15, 1.1, 1.1, 1.1, 0.7, 0.6]
+      burst_p: 0.05
+      burst_mean_len: 1.5
+    events:
+      - event: DISPENSED
+        weight: 1.0
+        counterparty: !repeat_or_neighbor { relation: served, repeat_p: 0.50 }
+    activity: !log_normal { mu: 0.0, sigma: 0.6 }
+
+constraints:
+  - name: mue_units_cap
+    check: !attr_range { event: SUBMITTED_CLAIM, attr: units, min: 0.0, max: 50.0 }
+    description: units must not exceed plausible Medically Unlikely Edit (MUE) max-units/day (CMS NCCI)
+  - name: daily_service_time
+    check: !rate_limit { event: SUBMITTED_CLAIM, k: 120, window_s: 86400 }
+    description: ">120 claims/provider/day exceeds 24h of renderable service (phantom-billing candidate)"
+  - name: ncci_unbundling
+    check: !documented { rule: "component (Column 2) codes billed alongside their bundle (Column 1) without an appropriate modifier violate NCCI PTP edits ⇒ unbundling candidate" }
+  - name: controlled_substance_overlap
+    check: !sub_threshold_count { event: PRESCRIBED, attr: days_supply, threshold: 1000.0, floor: 7.0, k: 5, window_s: 2592000 }
+    description: ">=5 controlled-substance fills with overlapping days_supply per patient in 30d ⇒ doctor-shopping candidate (CMS Part D opioid)"
+  - name: peer_percentile_band
+    check: !documented { rule: "provider code-intensity mix must stay within specialty peer-percentile band; right-shift vs peers ⇒ upcoding candidate" }
+  - name: dx_procedure_coherence
+    check: !documented { rule: "ICD-10 diagnosis must support the billed HCPCS/CPT procedure; incoherent dx-procedure pair ⇒ medical-necessity candidate" }
+  - name: patient_not_two_places
+    check: !documented { rule: "a patient cannot be the subject of in-person claims from disjoint geographies at one ts (phantom-patient candidate)" }
+  - name: charge_non_negative
+    check: !attr_range { event: SUBMITTED_CLAIM, attr: charge, min: 0.01, max: 1.0e7 }
+
+adversaries:
+  # Upcoding: right-shift the E/M code intensity vs peers; stay just under audit thresholds.
+  - intent: upcoding
+    description: >-
+      Provider systematically bills higher-intensity E/M codes than the visit
+      warrants (NHCAA upcoding). Camouflage = right-shift only modestly and mix
+      legit lower-level codes to stay inside the peer-percentile band.
+    actor: provider
+    stages:
+      - name: inflate_intensity
+        duration_days: !uniform { min: 30.0, max: 120.0 }
+        activity_multiplier: !uniform { min: 0.5803, max: 1.3927 }   # 10.0-24.0/day vs normal provider 17.23/day
+        event: SUBMITTED_CLAIM
+        scope: !normal           # own panel; only the code/charge is anomalous
+        attr_overrides:
+          - attr: code_intensity
+            dist: !uniform { min: 4.0, max: 5.0 }   # right-shift toward level4/level5 (ordinal index)
+          - attr: charge
+            dist: !log_normal { mu: 5.6, sigma: 0.6 }
+    camouflage: 0.6
+    prevalence_weight: 0.26
+    ring_size: !uniform { min: 1.0, max: 3.0 }
+    cascade_p: 0.05
+
+  # Phantom billing: services never rendered; impossible daily volume on real patients.
+  - intent: phantom_billing
+    description: >-
+      Provider bills for services never rendered, producing impossible daily
+      claim volumes (NHCAA phantom billing). Camouflage = bill real / dual-
+      eligible patients across the panel so each beneficiary looks normal.
+    actor: provider
+    stages:
+      - name: ghost_claims
+        duration_days: !uniform { min: 14.0, max: 90.0 }
+        activity_multiplier: !uniform { min: 8.7044, max: 23.2117 }   # 150.0-400.0/day vs normal provider 17.23/day   # implausible volume
+        event: SUBMITTED_CLAIM
+        scope: !victims
+          count: !uniform { min: 40.0, max: 150.0 }          # spread across many beneficiaries
+        attr_overrides:
+          - attr: charge
+            dist: !log_normal { mu: 5.0, sigma: 0.4 }
+          - attr: place_of_service
+            dist: !constant { value: 0.0 }   # office
+    camouflage: 0.45
+    prevalence_weight: 0.24
+    ring_size: !uniform { min: 1.0, max: 2.0 }
+    cascade_p: 0.08
+
+  # Unbundling: split a bundled procedure into NCCI component codes billed separately.
+  - intent: unbundling
+    description: >-
+      Provider bills NCCI component (Column 2) codes separately instead of the
+      bundle, inflating reimbursement (NCCI PTP edits). Modeled as repeated
+      multi-line claims on the same patient within a tight window.
+    actor: provider
+    stages:
+      - name: split_components
+        duration_days: !uniform { min: 20.0, max: 90.0 }
+        activity_multiplier: !uniform { min: 0.6963, max: 1.7409 }   # 12.0-30.0/day vs normal provider 17.23/day
+        event: SUBMITTED_CLAIM
+        scope: !normal
+        attr_overrides:
+          - attr: units
+            dist: !log_normal { mu: 1.2, sigma: 0.4 }   # multiple component lines
+    camouflage: 0.55
+    prevalence_weight: 0.18
+    ring_size: !uniform { min: 1.0, max: 3.0 }
+    cascade_p: 0.05
+
+  # Kickback ring: dense provider-patient-pharmacy core with reciprocal referral loops.
+  - intent: kickback_ring
+    description: >-
+      Colluding providers and pharmacies form a dense core with reciprocal
+      referral loops and steered prescriptions (Stark / Anti-Kickback).
+      Camouflage = small per-patient amounts and recruited beneficiaries.
+    actor: provider
+    stages:
+      - name: reciprocal_referrals
+        duration_days: !uniform { min: 30.0, max: 120.0 }
+        activity_multiplier: !uniform { min: 0.0580, max: 0.2321 }   # 1.0-4.0/day vs normal provider 17.23/day
+        event: REFERRED
+        scope: !chain            # member i -> i+1; cycles back = reciprocal loop
+      - name: steered_prescriptions
+        duration_days: !uniform { min: 30.0, max: 120.0 }
+        activity_multiplier: !uniform { min: 0.1161, max: 0.3482 }   # 2.0-6.0/day vs normal provider 17.23/day
+        event: PRESCRIBED
+        scope: !collector        # ring funnels scripts toward one pharmacy/patient set
+        attr_overrides:
+          - attr: is_controlled
+            dist: !constant { value: 1.0 }
+      - name: cover_claims
+        duration_days: !uniform { min: 30.0, max: 120.0 }
+        activity_multiplier: !uniform { min: 0.1741, max: 0.4642 }   # 3.0-8.0/day vs normal provider 17.23/day
+        event: SUBMITTED_CLAIM
+        scope: !normal           # small, normal-looking per-patient claims
+        attr_overrides:
+          - attr: charge
+            dist: !log_normal { mu: 4.2, sigma: 0.4 }
+    camouflage: 0.65
+    prevalence_weight: 0.20
+    ring_size: !uniform { min: 4.0, max: 12.0 }
+    cascade_p: 0.12
+
+  # Doctor shopping: one patient acquires controlled-substance scripts from many prescribers.
+  - intent: doctor_shopping
+    description: >-
+      A single beneficiary obtains overlapping controlled-substance
+      prescriptions from many distinct prescribers (CMS Part D opioid /
+      doctor-pharmacy shopping). The patient is the actor fanning out to fresh
+      prescriber victims.
+    actor: provider
+    stages:
+      - name: prescriber_fanin
+        duration_days: !uniform { min: 20.0, max: 90.0 }
+        # Doctor shopping is a COUNT typology, not a cadence: CMS Part D / the
+        # Overutilization Monitoring System (OMS) flags a beneficiary who collects
+        # overlapping controlled fills from many DISTINCT prescribers (classic OMS
+        # criterion >=4 prescribers). Each deceived prescriber writes only a HANDFUL
+        # of ~30-day (days_supply 25-35) opioid refills over the ~2-month median
+        # campaign, a fixed clinical cadence that does NOT scale with graph
+        # density. The signal is the fan-in DEGREE (ring_size distinct prescribers
+        # -> one patient), not per-prescriber volume. It was previously an
+        # activity_multiplier (BUDGET-ELASTIC: k x normal provider rate); because
+        # the normal provider rate rides world.rate_scale, the absolute per-
+        # prescriber rate collapsed at sparser budgets (0.93/day at 1M edges ->
+        # 0.072/day at fidelity scale), driving expected events per campaign to
+        # ~0.3 so the whole intent Poisson-rounded to ZERO edges. event_count fixes
+        # exactly that budget dependence (budget-INELASTIC, still difficulty-damped
+        # via k = count/(normal_rate x duration)): 2-4 overlapping controlled fills
+        # per prescriber x 5-15 prescribers aggregates to the >=5 fills/30d/patient
+        # doctor-shopping threshold (constraint controlled_substance_overlap).
+        event_count: !uniform { min: 2.0, max: 4.0 }
+        event: PRESCRIBED
+        scope: !collector          # many prescribers -> one shopping patient
+        attr_overrides:
+          - attr: is_controlled
+            dist: !constant { value: 1.0 }
+          - attr: days_supply
+            dist: !uniform { min: 25.0, max: 35.0 }   # overlapping supplies
+    camouflage: 0.5
+    prevalence_weight: 0.12
+    ring_size: !uniform { min: 5.0, max: 15.0 }       # distinct prescribers
+    cascade_p: 0.04
+
+failures: []
+
+control:
+  prevalence: 0.02        # fraudulent providers/patients are rare (LEIE base rates ~1-2%)
+  difficulty: 0.5
+  type_mix: []            # default: per-process prevalence weights
+  placement: !clustered { n_communities: 8 }
+  cascade: 1.0

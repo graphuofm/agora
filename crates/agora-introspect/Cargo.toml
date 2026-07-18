@@ -1,0 +1,13 @@
+[package]
+name = "agora-introspect"
+description = "Single-pass streaming statistics, sketches (HLL/CM/KLL/reservoir) and system self-metrics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+agora-core.workspace = true

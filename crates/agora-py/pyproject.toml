@@ -1,0 +1,26 @@
+[build-system]
+requires = ["maturin>=1.5"]
+build-backend = "maturin"
+
+[project]
+name = "agora"
+description = "AGORA: agent-based-simulation graph benchmark generator (PyO3 bindings)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "AGORA contributors" }]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "License :: OSI Approved :: Apache Software License",
+]
+dynamic = ["version"]
+dependencies = ["numpy>=1.21"]
+
+[project.urls]
+Repository = "https://anonymous.4open.science/r/agora"
+
+[tool.maturin]
+# The wheel's import name is `agora`, matching the `#[pymodule] fn agora`.
+module-name = "agora"
+features = ["pyo3/extension-module"]

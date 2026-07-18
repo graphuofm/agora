@@ -1,0 +1,24 @@
+[package]
+name = "agora-cli"
+description = "The agora command-line interface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "agora"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+owo-colors.workspace = true
+agora-rules.workspace = true
+agora-host.workspace = true
+agora-core.workspace = true
+agora-io.workspace = true
+agora-introspect.workspace = true
